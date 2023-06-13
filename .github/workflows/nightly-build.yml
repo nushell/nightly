@@ -2,13 +2,14 @@
 # REF:
 #   1. https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstrategymatrixinclude
 #   2. https://github.com/JasonEtco/create-an-issue
+#   3. https://docs.github.com/en/actions/learn-github-actions/variables
 #
 name: Nightly Build
 
 on:
-  # push:
-  #   branches:
-  #     - feature/release
+  push:
+    branches:
+      - main
   schedule:
     - cron: '0 3 * * *' # run at 3 AM UTC
 
@@ -111,3 +112,40 @@ jobs:
         update_existing: true
         search_existing: open
         filename: .github/ISSUE_TEMPLATE/nightly-build-fail.md
+
+    # REF: https://github.com/marketplace/actions/gh-release
+    - name: Publish Archive
+      uses: softprops/action-gh-release@v0.1.13
+      if: ${{ startsWith(github.repository, 'nushell/nightly') }}
+      permissions:
+        contents: write
+      with:
+        draft: false
+        prerelease: true
+        body: |
+          This is a nightly build of Nushell.
+          It is not recommended for production use.
+          release from ${{ github.sha }} at ${{ strftime('%Y-%m-%d') }}
+        files: ${{ steps.nu.outputs.archive }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Keep the last a few releases
+    - name: Delete old releases
+      uses: actions/github-script@v5
+      if: ${{ startsWith(github.repository, 'nushell/nightly') }}
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+
+          const owner = process.env.GITHUB_REPOSITORY.split('/')[0];
+          const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
+
+          const { data: releases } = await octokit.rest.repos.listReleases({ owner, repo });
+          if (releases.length > 2) {
+            const releasesToDelete = releases.slice(7).map((release) => release.id);
+            for (const releaseId of releasesToDelete) {
+              await octokit.rest.repos.deleteRelease({ owner, repo, release_id: releaseId });
+            }
+          }
