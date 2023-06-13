@@ -117,8 +117,6 @@ jobs:
     - name: Publish Archive
       uses: softprops/action-gh-release@v0.1.13
       if: ${{ startsWith(github.repository, 'nushell/nightly') }}
-      permissions:
-        contents: write
       with:
         draft: false
         prerelease: true
