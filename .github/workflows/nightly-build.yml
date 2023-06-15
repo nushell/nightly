@@ -81,41 +81,41 @@ jobs:
         include:
         - target: aarch64-apple-darwin
           os: macos-latest
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: x86_64-apple-darwin
           os: macos-latest
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: x86_64-pc-windows-msvc
           extra: 'bin'
           os: windows-latest
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: x86_64-pc-windows-msvc
           extra: msi
           os: windows-latest
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: aarch64-pc-windows-msvc
           extra: 'bin'
           os: windows-latest
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: aarch64-pc-windows-msvc
           extra: msi
           os: windows-latest
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: x86_64-unknown-linux-gnu
           os: ubuntu-20.04
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: x86_64-unknown-linux-musl
           os: ubuntu-20.04
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: aarch64-unknown-linux-gnu
           os: ubuntu-20.04
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: armv7-unknown-linux-gnueabihf
           os: ubuntu-20.04
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
         - target: riscv64gc-unknown-linux-gnu
           os: ubuntu-20.04
-          target_rustflags: ''
+          target_rustflags: '--features=mimalloc'
 
     runs-on: ${{matrix.os}}
 
