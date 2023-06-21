@@ -10,7 +10,7 @@ name: Nightly Build
 on:
   push:
     branches:
-      - nightly   # Just for test purpose only with the nightly repo
+      - nightly0   # Just for test purpose only with the nightly repo
   # This schedule will run only from the default branch
   schedule:
     - cron: '15 0 * * *' # run at 01:15 AM UTC
@@ -54,13 +54,11 @@ jobs:
           git config user.name 'hustcer'
           git config user.email 'hustcer@outlook.com'
           git pull origin main
-          # --- COMMENT BEGIN: Comment the following lines to disable code syncing ---
-          # git remote add src https://github.com/nushell/nushell.git
-          # git fetch src main
-          # # All the changes will be overwritten by the upstream main branch
-          # git reset --hard src/main
-          # git push origin main -f
-          # --------------------------------- COMMENT END ----------------------------
+          git remote add src https://github.com/nushell/nushell.git
+          git fetch src main
+          # All the changes will be overwritten by the upstream main branch
+          git reset --hard src/main
+          git push origin main -f
           let sha_short = (git rev-parse --short origin/main | str trim | str substring 0..7)
           let tag_name = $'nightly-($sha_short)'
           if (git ls-remote --tags origin $tag_name | is-empty) {
