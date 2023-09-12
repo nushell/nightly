@@ -10,7 +10,7 @@ name: Nightly Build
 on:
   push:
     branches:
-      - nightly0   # Just for test purpose only with the nightly repo
+      - nightly0    # Just for test purpose only with the nightly repo
   # This schedule will run only from the default branch
   schedule:
     - cron: '15 0 * * *' # run at 01:15 AM UTC
@@ -27,7 +27,7 @@ jobs:
     # if: github.repository == 'nushell/nightly'
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         if: github.repository == 'nushell/nightly'
         with:
           ref: main
@@ -86,35 +86,35 @@ jobs:
         include:
         - target: aarch64-apple-darwin
           os: macos-latest
-          target_rustflags: '--features=mimalloc'
+          target_rustflags: ''
         - target: x86_64-apple-darwin
           os: macos-latest
-          target_rustflags: '--features=mimalloc'
+          target_rustflags: ''
         - target: x86_64-pc-windows-msvc
           extra: 'bin'
           os: windows-latest
-          target_rustflags: '--features=mimalloc'
+          target_rustflags: ''
         - target: x86_64-pc-windows-msvc
           extra: msi
           os: windows-latest
-          target_rustflags: '--features=mimalloc'
+          target_rustflags: ''
         - target: aarch64-pc-windows-msvc
           extra: 'bin'
           os: windows-latest
-          target_rustflags: '--features=mimalloc'
+          target_rustflags: ''
         - target: aarch64-pc-windows-msvc
           extra: msi
           os: windows-latest
-          target_rustflags: '--features=mimalloc'
+          target_rustflags: ''
         - target: x86_64-unknown-linux-gnu
           os: ubuntu-20.04
-          target_rustflags: '--features=mimalloc'
+          target_rustflags: ''
         - target: x86_64-unknown-linux-musl
           os: ubuntu-20.04
-          target_rustflags: '--features=mimalloc'
+          target_rustflags: ''
         - target: aarch64-unknown-linux-gnu
           os: ubuntu-20.04
-          target_rustflags: '--features=mimalloc'
+          target_rustflags: ''
         - target: armv7-unknown-linux-gnueabihf
           os: ubuntu-20.04
           target_rustflags: '--exclude=nu-cmd-dataframe'
@@ -125,7 +125,7 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         ref: main
 
@@ -135,6 +135,8 @@ jobs:
 
     - name: Setup Rust toolchain and cache
       uses: actions-rust-lang/setup-rust-toolchain@v1.5.0
+      with:
+        rustflags: ''
 
     - name: Setup Nushell
       uses: hustcer/setup-nu@v3
@@ -173,7 +175,7 @@ jobs:
     # REF: https://github.com/marketplace/actions/gh-release
     # Create a release only in nushell/nightly repo
     - name: Publish Archive
-      uses: softprops/action-gh-release@v0.1.13
+      uses: softprops/action-gh-release@v0.1.15
       if: ${{ startsWith(github.repository, 'nushell/nightly') }}
       with:
         draft: false
@@ -197,7 +199,7 @@ jobs:
       - name: Waiting for Release
         run: sleep 1800
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: main
 
