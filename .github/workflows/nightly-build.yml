@@ -178,8 +178,10 @@ jobs:
       uses: softprops/action-gh-release@v0.1.15
       if: ${{ startsWith(github.repository, 'nushell/nightly') }}
       with:
-        tag_name: nightly-${{ steps.vars.outputs.sha_short }}
+        prerelease: true
         files: ${{ steps.nu.outputs.archive }}
+        tag_name: nightly-${{ steps.vars.outputs.sha_short }}
+        name: Nu-nightly-${{ steps.vars.outputs.date }}-${{ steps.vars.outputs.sha_short }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
