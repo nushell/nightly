@@ -49,7 +49,7 @@ export def get-latest-nightly-build [
             msg: (
                   $"(ansi red_bold)unexpected_internal_error(ansi reset):\n"
                 + $"expected one match, found ($target | length)\n"
-                + $"matches: ($target)"
+                + $"matches: ($target.name)"
             )
         }
     }
