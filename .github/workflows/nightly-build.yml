@@ -10,7 +10,7 @@ name: Nightly Build
 on:
   push:
     branches:
-      - nightly   # Just for test purpose only with the nightly repo
+      - nightly0    # Just for test purpose only with the nightly repo
   # This schedule will run only from the default branch
   schedule:
     - cron: '15 0 * * *' # run at 00:15 AM UTC
@@ -39,7 +39,7 @@ jobs:
         uses: hustcer/setup-nu@v3.6
         if: github.repository == 'nushell/nightly'
         with:
-          version: 0.85.0
+          version: 0.86.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -134,6 +134,9 @@ jobs:
       run: |
         echo "targets = ['${{matrix.target}}']" >> rust-toolchain.toml
 
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.3
+
     - name: Setup Rust toolchain and cache
       uses: actions-rust-lang/setup-rust-toolchain@v1.5.0
       # WARN: Keep the rustflags to prevent from the winget submission error: `CAQuietExec:  Error 0xc0000135`
@@ -143,7 +146,7 @@ jobs:
     - name: Setup Nushell
       uses: hustcer/setup-nu@v3.6
       with:
-        version: 0.85.0
+        version: 0.86.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -248,15 +251,19 @@ jobs:
       run: |
         echo "targets = ['${{matrix.target}}']" >> rust-toolchain.toml
 
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.3
+
     - name: Setup Rust toolchain and cache
       uses: actions-rust-lang/setup-rust-toolchain@v1.5.0
+      # WARN: Keep the rustflags to prevent from the winget submission error: `CAQuietExec:  Error 0xc0000135`
       with:
         rustflags: ''
 
     - name: Setup Nushell
       uses: hustcer/setup-nu@v3.6
       with:
-        version: 0.85.0
+        version: 0.86.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -322,7 +329,7 @@ jobs:
       - name: Setup Nushell
         uses: hustcer/setup-nu@v3.6
         with:
-          version: 0.85.0
+          version: 0.86.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
