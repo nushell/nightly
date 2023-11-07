@@ -16,6 +16,7 @@ export def get-latest-nightly-build [
     let matches = $latest.assets
         | get name
         | where $it =~ $target
+        | where $it !~ 'msi'
         | parse --regex 'nu-\d\.\d+\.\d-(?<arch>[a-zA-Z0-9-_]*)\..*'
         | get arch
 
