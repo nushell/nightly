@@ -1,12 +1,13 @@
 use std log
 
-# pull down the latest nightly build of Nushell
+# install the latest nightly build of Nushell
 #
 # this command will
 # - get the metadata of the latest build of Nushell in the nightly repo
-# - fuzzy-ask one of them or use the single match
+# - interactively ask for one of them or use architecture-specific defaults
 # - download the archive
-# - give some hints about the version and the hash and how to extract the archive
+# - extract the archive
+# - install the `nu` binary
 export def get-latest-nightly-build [
     --install-dir: path = "~/.local/bin/" # the directory where to install the `nu` binary
     --interactive # ask for the architecture to install interactively
