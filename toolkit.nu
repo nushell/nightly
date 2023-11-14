@@ -10,6 +10,8 @@ use std log
 export def get-latest-nightly-build [
     --install-dir: path = "~/.local/bin/" # the directory where to install the `nu` binary
     --interactive # ask for the architecture to install interactively
+    --full # install Nushell with all extra features enabled
+    --musl # install Nushell from the MUSL builds (linux x86_64 only)
 ]: nothing -> nothing {
     let latest = http get https://api.github.com/repos/nushell/nightly/releases
         | sort-by published_at --reverse
@@ -43,10 +45,55 @@ export def get-latest-nightly-build [
             },
         }
     } else {
+        if $musl and (($nu.os-info.arch != "x86_64") or ($nu.os-info.name != "linux")) {
+            error make --unspanned {
+                msg: (
+                    $"(ansi red_bold)invalid_options(ansi reset):\n"
+                  + $"--musl requires to be on 'linux x86_64' but you are using '($nu.os-info.name) ($nu.os-info.arch)'"
+                )
+            }
+        }
+
+        if $full and ($nu.os-info.name not-in ["linux", "macos", "windows"]) {
+            error make --unspanned {
+                msg: (
+                    $"(ansi red_bold)invalid_options(ansi reset):\n"
+                  + $"--full is not available for `($nu.os-info.arch)`"
+                )
+            }
+        }
+
         match $nu.os-info.name {
-            "linux" => $"($nu.os-info.arch)-linux-musl-full",
-            "macos" => $"($nu.os-info.arch)-((sys).host.name | str downcase)",
-            "windows" => { error make --unspanned { msg: "TODO" } },
+            "linux" => {
+                if $musl {
+                    if $full {
+                        "x86_64-linux-musl-full"
+                    } else {
+                        "x86_64-unknown-linux-musl"
+                    }
+                } else {
+                    if $full {
+                        $"($nu.os-info.arch)-linux-gnu-full"
+                    } else {
+                        $"($nu.os-info.arch)-unknown-linux-gnu"
+                    }
+                }
+            },
+            "macos" => {
+                if $full {
+                    $"($nu.os-info.arch)-darwin-full"
+                } else {
+                    $"($nu.os-info.arch)-apple-darwin"
+                }
+            },
+            "windows" => {
+                if $full {
+                    $"($nu.os-info.arch)-windows-msvc-full"
+                } else {
+                    $"($nu.os-info.arch)-pc-windows-msvc"
+                }
+            },
+            $name => $name,
         }
     }
 
