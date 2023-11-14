@@ -55,18 +55,20 @@ export def get-latest-nightly-build [
     }
     let target = $target | first
 
+    let dump_dir = $nu.temp-path | path join $target.name
+
     let build = $target.name
         | parse --regex 'nu-(?<version>\d\.\d+\.\d)-(?<arch>[a-zA-Z0-9-_]*)\.(?<extension>.*)'
         | into record
 
-    http get $target.browser_download_url | save --progress --force ($nu.temp-path | path join $target.name)
+    http get $target.browser_download_url | save --progress --force $dump_dir
 
     match $build.extension {
         "tar.gz" => {
-            ^tar xvf ($nu.temp-path | path join $target.name) --directory $nu.temp-path
+            ^tar xvf $dump_dir --directory $nu.temp-path
         },
         "zip" => {
-            ^unzip ($nu.temp-path | path join $target.name) -d $nu.temp-path
+            ^unzip $dump_dir -d $nu.temp-path
         },
         _ => {
             error make --unspanned {
@@ -79,9 +81,6 @@ export def get-latest-nightly-build [
         },
     }
 
-    let binary = $nu.temp-path
-        | path join $target.name
-        | str replace --regex $'\.($build.extension)$' ''
-        | path join "nu"
+    let binary = $dump_dir | str replace --regex $'\.($build.extension)$' '' | path join "nu"
     cp --force --verbose $binary ($install_dir | path expand)
 }
