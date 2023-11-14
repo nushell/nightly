@@ -8,6 +8,7 @@
 # - give some hints about the version and the hash and how to extract the archive
 export def get-latest-nightly-build [
     target: string = "" # the target architecture, matches all of them by default
+    --install-dir: path = "~/.local/bin/" # the directory where to install the `nu` binary
 ]: nothing -> nothing {
     let latest = http get https://api.github.com/repos/nushell/nightly/releases
         | sort-by published_at --reverse
@@ -61,18 +62,29 @@ export def get-latest-nightly-build [
         | first
         | insert hash { $latest.tag_name | parse "nightly-{hash}" | get 0.hash }
 
-    http get $target.browser_download_url | save --progress --force $target.name
+    http get $target.browser_download_url | save --progress --force ($nu.temp-path | path join $target.name)
 
-    print $"latest nightly build \(version: ($build.version), hash: ($build.hash)\) saved as `(ansi default_dimmed)($target.name)(ansi reset)`"
     match $build.extension {
         "tar.gz" => {
-            print $"(ansi cyan)hint(ansi reset): run `(ansi default_dimmed)tar xvf ($target.name) --directory .(ansi reset)` to unpack the tarball"
+            ^tar xvf ($nu.temp-path | path join $target.name) --directory $nu.temp-path
         },
         "zip" => {
-            print $"(ansi cyan)hint(ansi reset): run `(ansi default_dimmed)unzip ($target.name) -d .(ansi reset)` to unpack the archive"
+            ^unzip ($nu.temp-path | path join $target.name) -d $nu.temp-path
         },
         _ => {
-            print $"unknown extension ($build.extension), you'll have to figure out how to extract this archive ;)"
+            error make --unspanned {
+                msg: (
+                    $"(ansi red_bold)unknown_archive_extension(ansi reset)\n"
+                  + $"unknown extension ($build.extension)"
+                )
+                help: "you'll have to figure out how to extract this archive ;)"
+            }
         },
     }
+
+    let binary = $nu.temp-path
+        | path join $target.name
+        | str replace --regex $'\.($build.extension)$' ''
+        | path join "nu"
+    cp --force --verbose $binary ($install_dir | path expand)
 }
