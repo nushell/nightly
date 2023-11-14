@@ -40,7 +40,11 @@ export def get-latest-nightly-build [
             },
         }
     } else {
-        error make --unspanned { msg: "TODO" }
+        match $nu.os-info.name {
+            "linux" => $"($nu.os-info.arch)-linux-musl-full",
+            "macos" => $"($nu.os-info.arch)-((sys).host.name | str downcase)",
+            "windows" => { error make --unspanned { msg: "TODO" } },
+        }
     }
 
     let target = $latest.assets | where name =~ $arch
