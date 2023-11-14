@@ -54,7 +54,7 @@ export def get-latest-nightly-build [
             }
         }
 
-        if $full and ($nu.os-info.name not-in ["linux", "macos", "windows"]) {
+        if $full and ($nu.os-info.arch not-in ["aarch64", "x86_64"]) {
             error make --unspanned {
                 msg: (
                     $"(ansi red_bold)invalid_options(ansi reset):\n"
