@@ -1,3 +1,5 @@
+use std log
+
 # pull down the latest nightly build of Nushell
 #
 # this command will
@@ -65,13 +67,16 @@ export def get-latest-nightly-build [
         | parse --regex 'nu-(?<version>\d\.\d+\.\d)-(?<arch>[a-zA-Z0-9-_]*)\.(?<extension>.*)'
         | into record
 
+    log info $"pulling down (ansi default_dimmed)($target.name)(ansi reset)..."
     http get $target.browser_download_url | save --progress --force $dump_dir
 
     match $build.extension {
         "tar.gz" => {
+            log info "extracting nushell..."
             ^tar xvf $dump_dir --directory $nu.temp-path
         },
         "zip" => {
+            log info "extracting nushell..."
             ^unzip $dump_dir -d $nu.temp-path
         },
         _ => {
@@ -86,5 +91,6 @@ export def get-latest-nightly-build [
     }
 
     let binary = $dump_dir | str replace --regex $'\.($build.extension)$' '' | path join "nu"
+    log info "installing `nu`..."
     cp --force --verbose $binary ($install_dir | path expand)
 }
