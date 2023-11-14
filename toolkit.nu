@@ -17,7 +17,8 @@ export def get-latest-nightly-build [
 
     let assets = $latest.assets
         | get name
-        | parse --regex 'nu-\d\.\d+\.\d-(?<arch>[a-zA-Z0-9-_]*\..*)'
+        | where not ($it | str ends-with ".msi")
+        | parse --regex 'nu-\d\.\d+\.\d-(?<arch>[a-zA-Z0-9-_]*)\..*'
         | get arch
 
     let arch = if $interactive {
@@ -82,8 +83,8 @@ export def get-latest-nightly-build [
         _ => {
             error make --unspanned {
                 msg: (
-                    $"(ansi red_bold)unknown_archive_extension(ansi reset)\n"
-                  + $"unknown extension ($build.extension)"
+                    $"(ansi red_bold)unexpected_internal_error(ansi reset)\n"
+                  + $"unknown extension .($build.extension)"
                 )
                 help: "you'll have to figure out how to extract this archive ;)"
             }
