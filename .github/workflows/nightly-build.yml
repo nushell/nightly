@@ -31,7 +31,7 @@ jobs:
     # if: github.repository == 'nushell/nightly'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4.1.2
         if: github.repository == 'nushell/nightly'
         with:
           ref: main
@@ -127,7 +127,7 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4.1.2
       with:
         ref: main
         fetch-depth: 0
@@ -181,7 +181,7 @@ jobs:
     # REF: https://github.com/marketplace/actions/gh-release
     # Create a release only in nushell/nightly repo
     - name: Publish Archive
-      uses: softprops/action-gh-release@v2.0.1
+      uses: softprops/action-gh-release@v2.0.4
       if: ${{ startsWith(github.repository, 'nushell/nightly') }}
       with:
         prerelease: true
@@ -242,7 +242,7 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4.1.2
       with:
         ref: main
         fetch-depth: 0
@@ -296,7 +296,7 @@ jobs:
     # REF: https://github.com/marketplace/actions/gh-release
     # Create a release only in nushell/nightly repo
     - name: Publish Archive
-      uses: softprops/action-gh-release@v2.0.1
+      uses: softprops/action-gh-release@v2.0.4
       if: ${{ startsWith(github.repository, 'nushell/nightly') }}
       with:
         draft: false
@@ -320,7 +320,7 @@ jobs:
       - name: Waiting for Release
         run: sleep 1800
 
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v4.1.2
         with:
           ref: main
 
