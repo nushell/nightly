@@ -31,7 +31,7 @@ jobs:
     # if: github.repository == 'nushell/nightly'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.2
+        uses: actions/checkout@v4.1.4
         if: github.repository == 'nushell/nightly'
         with:
           ref: main
@@ -40,7 +40,7 @@ jobs:
           token: ${{ secrets.WORKFLOW_TOKEN }}
 
       - name: Setup Nushell
-        uses: hustcer/setup-nu@v3.9
+        uses: hustcer/setup-nu@v3.10
         if: github.repository == 'nushell/nightly'
         with:
           version: 0.92.2
@@ -127,7 +127,7 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-    - uses: actions/checkout@v4.1.2
+    - uses: actions/checkout@v4.1.4
       with:
         ref: main
         fetch-depth: 0
@@ -146,7 +146,7 @@ jobs:
         rustflags: ''
 
     - name: Setup Nushell
-      uses: hustcer/setup-nu@v3.9
+      uses: hustcer/setup-nu@v3.10
       with:
         version: 0.92.2
 
@@ -242,7 +242,7 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-    - uses: actions/checkout@v4.1.2
+    - uses: actions/checkout@v4.1.4
       with:
         ref: main
         fetch-depth: 0
@@ -261,7 +261,7 @@ jobs:
         rustflags: ''
 
     - name: Setup Nushell
-      uses: hustcer/setup-nu@v3.9
+      uses: hustcer/setup-nu@v3.10
       with:
         version: 0.92.2
 
@@ -320,12 +320,12 @@ jobs:
       - name: Waiting for Release
         run: sleep 1800
 
-      - uses: actions/checkout@v4.1.2
+      - uses: actions/checkout@v4.1.4
         with:
           ref: main
 
       - name: Setup Nushell
-        uses: hustcer/setup-nu@v3.9
+        uses: hustcer/setup-nu@v3.10
         with:
           version: 0.92.2
 
