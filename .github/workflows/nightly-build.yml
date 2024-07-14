@@ -57,7 +57,7 @@ jobs:
           # All the changes will be overwritten by the upstream main branch
           git reset --hard src/main
           git push origin main -f
-          let sha_short = (git rev-parse --short origin/main | str trim | str substring 0..7)
+          let sha_short = (git rev-parse --short origin/main | str trim | str substring 0..6)
           let tag_name = $'nightly-($sha_short)'
           if (git ls-remote --tags origin $tag_name | is-empty) {
             git tag -a $tag_name -m $'Nightly build from ($sha_short)'
