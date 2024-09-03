@@ -30,8 +30,10 @@ jobs:
         - x86_64-unknown-linux-gnu
         - x86_64-unknown-linux-musl
         - aarch64-unknown-linux-gnu
+        - aarch64-unknown-linux-musl
         - armv7-unknown-linux-gnueabihf
         - riscv64gc-unknown-linux-gnu
+        - loongarch64-unknown-linux-gnu
         extra: ['bin']
         include:
         - target: aarch64-apple-darwin
@@ -56,10 +58,14 @@ jobs:
           os: ubuntu-22.04
         - target: aarch64-unknown-linux-gnu
           os: ubuntu-22.04
+        - target: aarch64-unknown-linux-musl
+          os: ubuntu-22.04
         - target: armv7-unknown-linux-gnueabihf
           os: ubuntu-22.04
         - target: riscv64gc-unknown-linux-gnu
           os: ubuntu-latest
+        - target: loongarch64-unknown-linux-gnu
+          os: ubuntu-22.04
 
     runs-on: ${{matrix.os}}
 
