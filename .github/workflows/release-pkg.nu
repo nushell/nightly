@@ -69,6 +69,9 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
         sudo apt-get install libxcb-composite0-dev -y
     }
     match $target {
+        'x86_64-unknown-freebsd' => {
+            docker container run --rm --volume $'($env.GITHUB_WORKSPACE):/src' --user $'(id --user):(id --group)' unixgeek2/rust-x86_64-freebsd:rust-1.79.0 build --release --all --target $target
+        }
         'aarch64-unknown-linux-gnu' => {
             sudo apt-get install gcc-aarch64-linux-gnu -y
             $env.CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = 'aarch64-linux-gnu-gcc'
