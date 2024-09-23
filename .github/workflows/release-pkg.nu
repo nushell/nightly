@@ -70,7 +70,6 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
     }
     match $target {
         'x86_64-unknown-freebsd' => {
-            rm $'($env.GITHUB_WORKSPACE)/rust-toolchain.toml'
             let ARGS = [
                 --rm --volume $'($env.GITHUB_WORKSPACE):/src'
                 --user $'(id --user):(id --group)'
