@@ -107,8 +107,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  checksum:
-    name: Check Sha256sum
+  sha256sum:
+    name: Create Sha256sum
     needs: release
     runs-on: ubuntu-latest
     steps:
@@ -116,15 +116,12 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: >-
-        gh release download
-        --repo nushell/nightly
+        gh release download ${{ github.ref_name }}
+        --repo ${{ github.repository }}
         --pattern '*'
         --dir release
-        ${{ github.ref_name }}
     - name: Create Checksums
-      run: |
-        cd release
-        shasum -a 256 * > ../SHA256SUMS
+      run: cd release && shasum -a 256 * > ../SHA256SUMS
     - name: Publish Checksums
       uses: softprops/action-gh-release@v2.0.8
       with:
