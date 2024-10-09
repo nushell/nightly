@@ -125,7 +125,7 @@ jobs:
     - name: Publish Checksums
       uses: softprops/action-gh-release@v2.0.8
       with:
-        draft: false
+        draft: true
         files: SHA256SUMS
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
