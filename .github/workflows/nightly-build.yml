@@ -120,7 +120,9 @@ jobs:
           os: ubuntu-22.04
 
     runs-on: ${{matrix.os}}
-
+    # Map a step output to a job output
+    outputs:
+      sha_short: ${{ steps.vars.outputs.sha_short }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -191,7 +193,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: >-
-        gh release download ${{ github.ref_name }}
+        gh release download nightly-${{ needs.release.outputs.sha_short }}
         --repo ${{ github.repository }}
         --pattern '*'
         --dir release
@@ -200,8 +202,10 @@ jobs:
     - name: Publish Checksums
       uses: softprops/action-gh-release@v2.0.8
       with:
-        draft: true
+        draft: false
+        prerelease: true
         files: SHA256SUMS
+        tag_name: nightly-${{ needs.release.outputs.sha_short }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
