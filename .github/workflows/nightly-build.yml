@@ -65,7 +65,7 @@ jobs:
             git push origin --tags
           }
 
-  standard:
+  release:
     name: Nu
     needs: prepare
     strategy:
@@ -178,6 +178,30 @@ jobs:
         files: ${{ steps.nu.outputs.archive }}
         tag_name: nightly-${{ steps.vars.outputs.sha_short }}
         name: Nu-nightly-${{ steps.vars.outputs.date }}-${{ steps.vars.outputs.sha_short }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sha256sum:
+    needs: release
+    name: Create Sha256sum
+    runs-on: ubuntu-latest
+    if: github.repository == 'nushell/nightly'
+    steps:
+    - name: Download Release Archives
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: >-
+        gh release download ${{ github.ref_name }}
+        --repo ${{ github.repository }}
+        --pattern '*'
+        --dir release
+    - name: Create Checksums
+      run: cd release && shasum -a 256 * > ../SHA256SUMS
+    - name: Publish Checksums
+      uses: softprops/action-gh-release@v2.0.8
+      with:
+        draft: true
+        files: SHA256SUMS
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
