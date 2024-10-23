@@ -1,0 +1,58 @@
+name: Pre Release
+
+on:
+  # This schedule will run only from the default branch
+  schedule:
+    - cron: '30 1 * * *' # run at 00:15 AM UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        type: boolean
+        default: false
+        required: false
+        description: 'Force Run'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  pre-release:
+    name: Pre Release
+    runs-on: ubuntu-latest
+    if: github.repository == 'nushell/nightly'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          # Configure PAT here: https://github.com/settings/tokens for the push operation in the following steps
+          token: ${{ secrets.WORKFLOW_TOKEN }}
+
+      - name: Setup Nushell
+        uses: hustcer/setup-nu@v3
+        with:
+          version: 0.99.0
+
+      # Synchronize the main branch of nightly repo with the main branch of Nushell official repo
+      - name: Pre Release
+        shell: nu {0}
+        run: |
+          cd $env.GITHUB_WORKSPACE
+          git checkout main
+          # We can't push if no user name and email are configured
+          git config user.name 'hustcer'
+          git config user.email 'hustcer@outlook.com'
+          git pull origin main
+          git remote add src https://github.com/nushell/nushell.git
+          git fetch src main
+          # All the changes will be overwritten by the upstream main branch
+          git reset --hard src/main
+          git push origin main -f
+          let version = open Cargo.toml | get package.version
+          let tag_name = $'($version)-pre'
+          if (git ls-remote --tags origin $tag_name | is-empty) {
+            git tag -a $tag_name -m $'Pre release from Nushell main branch'
+            git push origin --tags
+          }

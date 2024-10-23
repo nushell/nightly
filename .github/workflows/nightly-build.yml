@@ -10,7 +10,7 @@ name: Nightly Build
 on:
   push:
     branches:
-      - nightly   # Just for test purpose only with the nightly repo
+      - nightly0   # Just for test purpose only with the nightly repo
   # This schedule will run only from the default branch
   schedule:
     - cron: '15 0 * * *' # run at 00:15 AM UTC
