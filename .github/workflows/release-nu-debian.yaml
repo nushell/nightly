@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - docker/debian.Dockerfile
+  schedule:
+    - cron: '15 2 * * *' # run at 02:15 AM UTC
   workflow_dispatch:
 
 jobs:
