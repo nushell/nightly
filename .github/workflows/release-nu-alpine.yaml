@@ -1,0 +1,65 @@
+name: Build and Push Nushell Binaries @ Alpine
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - docker/Dockerfile
+  workflow_dispatch:
+
+jobs:
+  build-and-push-Nu:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Nushell
+        uses: hustcer/setup-nu@v3
+        with:
+          check-latest: true
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Set tag & labels for ${{ github.ref }}"
+        shell: nu {0}
+        run: |
+          $'BUILD_REF=(git rev-parse --short HEAD)(char nl)' o>> $env.GITHUB_ENV
+          $'BUILD_DATE=(date now | format date %Y-%m-%dT%H:%M:%SZ)(char nl)' o>> $env.GITHUB_ENV
+          let tagName = http get https://api.github.com/repos/nushell/nushell/releases
+                          | sort-by -r created_at | select tag_name | get tag_name.0
+          $'NU_VERSION=($tagName)(char nl)' o>> $env.GITHUB_ENV
+
+      - name: Build and Push Alpine Image
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          context: ./docker
+          file: ./docker/Dockerfile
+          build-args: |
+            BUILD_REF=${{ env.BUILD_REF }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
+            NU_VERSION=${{ env.NU_VERSION }}
+          tags: |
+            ghcr.io/nushell/nushell:latest
+            ghcr.io/nushell/nushell:latest-alpine
+            ghcr.io/nushell/nushell:${{ env.NU_VERSION }}
+            ghcr.io/nushell/nushell:${{ env.NU_VERSION }}-alpine
