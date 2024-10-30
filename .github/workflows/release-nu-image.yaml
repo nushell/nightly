@@ -51,7 +51,7 @@ jobs:
           let tagName = http get https://api.github.com/repos/nushell/nushell/releases
                           | sort-by -r created_at | select tag_name | get tag_name.0
           git remote set-url origin https://github.com/nushell/nushell.git
-          git fetch origin --tags
+          git fetch origin -p o+e> /dev/null
           let SHA = git rev-list -n 1 $tagName | str substring 0..7
           $'BUILD_REF=($SHA)(char nl)' o>> $env.GITHUB_ENV
           $'NU_VERSION=($tagName)(char nl)' o>> $env.GITHUB_ENV
