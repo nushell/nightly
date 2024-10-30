@@ -63,7 +63,4 @@ jobs:
             NU_VERSION=${{ env.NU_VERSION }}
             RELEASE_QUERY_API=${{ env.RELEASE_QUERY_API }}
           tags: |
-            ghcr.io/nushell/nushell:latest
-            ghcr.io/nushell/nushell:latest-alpine
             ghcr.io/nushell/nushell:${{ env.NU_VERSION }}
-            ghcr.io/nushell/nushell:${{ env.NU_VERSION }}-alpine
