@@ -1,11 +1,11 @@
-name: Build and Push Nushell Binaries @ Debian
+name: Build Nushell Release Images
 
 on:
   push:
     branches:
       - main
     paths:
-      - docker/debian.Dockerfile
+      - docker
   schedule:
     - cron: '15 2 * * *' # run at 02:15 AM UTC
   workflow_dispatch:
@@ -16,6 +16,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        base: [debian, alpine]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -51,6 +55,7 @@ jobs:
 
       - name: Build and Push Debian Image
         uses: docker/build-push-action@v6
+        if: ${{ matrix.base == 'debian' }}
         with:
           push: true
           context: ./docker
@@ -64,3 +69,21 @@ jobs:
           tags: |
             ghcr.io/nushell/nushell:latest-bookworm
             ghcr.io/nushell/nushell:${{ env.NU_VERSION }}-bookworm
+
+      - name: Build and Push Alpine Image
+        uses: docker/build-push-action@v6
+        if: ${{ matrix.base == 'alpine' }}
+        with:
+          push: true
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          context: ./docker
+          file: ./docker/Dockerfile
+          build-args: |
+            BUILD_REF=${{ env.BUILD_REF }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
+            NU_VERSION=${{ env.NU_VERSION }}
+          tags: |
+            ghcr.io/nushell/nushell:latest
+            ghcr.io/nushell/nushell:latest-alpine
+            ghcr.io/nushell/nushell:${{ env.NU_VERSION }}
+            ghcr.io/nushell/nushell:${{ env.NU_VERSION }}-alpine
