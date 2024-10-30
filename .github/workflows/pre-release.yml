@@ -3,7 +3,7 @@ name: Pre Release
 on:
   push:
     branches:
-      - nightly   # Just for test purpose only with the nightly repo
+      - nightly0    # Just for test purpose only with the nightly repo
   # This schedule will run only from the default branch
   schedule:
     - cron: '30 1 * * *' # run at 00:15 AM UTC
