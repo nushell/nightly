@@ -50,6 +50,26 @@ jobs:
           $'BUILD_REF=(git rev-parse --short HEAD)(char nl)' o>> $env.GITHUB_ENV
           $'BUILD_DATE=(date now | format date %Y-%m-%dT%H:%M:%SZ)(char nl)' o>> $env.GITHUB_ENV
 
+      - name: Build Alpine Test Image
+        uses: docker/build-push-action@v6
+        env:
+          DOCKER_BUILD_SUMMARY: false
+        with:
+          push: false
+          load: true
+          context: ./docker
+          file: ./docker/Dockerfile
+          tags: nushell-test-image
+
+      - name: Test Alpine Image
+        run: |
+          echo "## Alpine Container Test Results" >> $GITHUB_STEP_SUMMARY
+          docker run --rm \
+            -v "$(pwd)/docker:/work" \
+            --env GITHUB_ACTIONS=${{ env.GITHUB_ACTIONS }} \
+            nushell-test-image -c /work/test_docker.nu \
+            >> $GITHUB_STEP_SUMMARY
+
       - name: Build and Push Alpine Image
         uses: docker/build-push-action@v6
         with:
