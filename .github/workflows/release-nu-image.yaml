@@ -7,7 +7,7 @@ on:
     paths:
       - docker
   schedule:
-    - cron: '15 2 * * *' # run at 02:15 AM UTC
+    - cron: '15 2 * * 2,5' # Run at 02:15 AM UTC for Tuesday and Friday
   workflow_dispatch:
 
 jobs:
