@@ -65,3 +65,20 @@ jobs:
             RELEASE_QUERY_API=${{ env.RELEASE_QUERY_API }}
           tags: |
             ghcr.io/nushell/nushell:${{ env.NU_VERSION }}
+
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    needs: build-and-push-Nu
+    steps:
+      - name: Delete all containers from repository without tags
+        uses: Chizkiyahu/delete-untagged-ghcr-action@v4
+        with:
+          owner_type: user
+          untagged_only: true
+          package_name: 'nushell'
+          repository_owner: 'nushell'
+          repository: 'nushell/nushell'
+          token: ${{ secrets.GITHUB_TOKEN }}

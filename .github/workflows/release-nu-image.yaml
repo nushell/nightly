@@ -93,3 +93,20 @@ jobs:
             ghcr.io/nushell/nushell:latest-alpine
             ghcr.io/nushell/nushell:${{ env.NU_VERSION }}
             ghcr.io/nushell/nushell:${{ env.NU_VERSION }}-alpine
+
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    needs: build-and-push-Nu
+    steps:
+      - name: Delete all containers from repository without tags
+        uses: Chizkiyahu/delete-untagged-ghcr-action@v4
+        with:
+          owner_type: user
+          untagged_only: true
+          package_name: 'nushell'
+          repository_owner: 'nushell'
+          repository: 'nushell/nushell'
+          token: ${{ secrets.GITHUB_TOKEN }}
