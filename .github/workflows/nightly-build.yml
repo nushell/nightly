@@ -4,6 +4,7 @@
 #   2. https://github.com/JasonEtco/create-an-issue
 #   3. https://docs.github.com/en/actions/learn-github-actions/variables
 #   4. https://github.com/actions/github-script
+#   5. https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idneeds
 #
 name: Nightly Build
 
@@ -40,7 +41,7 @@ jobs:
         uses: hustcer/setup-nu@v3
         if: github.repository == 'nushell/nightly'
         with:
-          version: 0.98.0
+          version: 0.99.1
 
       # Synchronize the main branch of nightly repo with the main branch of Nushell official repo
       - name: Prepare for Nightly Release
@@ -142,7 +143,7 @@ jobs:
     - name: Setup Nushell
       uses: hustcer/setup-nu@v3
       with:
-        version: 0.98.0
+        version: 0.99.1
 
     - name: Release Nu Binary
       id: nu
@@ -213,12 +214,9 @@ jobs:
     name: Cleanup
     # Should only run in nushell/nightly repo
     if: github.repository == 'nushell/nightly'
+    needs: [release, sha256sum]
     runs-on: ubuntu-latest
     steps:
-      # Sleep for 30 minutes, waiting for the release to be published
-      - name: Waiting for Release
-        run: sleep 1800
-
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -226,7 +224,7 @@ jobs:
       - name: Setup Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: 0.98.0
+          version: 0.99.1
 
       # Keep the last a few releases
       - name: Delete Older Releases
