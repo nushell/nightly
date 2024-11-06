@@ -174,7 +174,7 @@ jobs:
     # REF: https://github.com/marketplace/actions/gh-release
     # Create a release only in nushell/nightly repo
     - name: Publish Archive
-      uses: softprops/action-gh-release@v2.0.8
+      uses: softprops/action-gh-release@v2.0.9
       if: ${{ startsWith(github.repository, 'nushell/nightly') }}
       with:
         prerelease: true
@@ -201,7 +201,7 @@ jobs:
     - name: Create Checksums
       run: cd release && shasum -a 256 * > ../SHA256SUMS
     - name: Publish Checksums
-      uses: softprops/action-gh-release@v2.0.8
+      uses: softprops/action-gh-release@v2.0.9
       with:
         draft: false
         prerelease: true
