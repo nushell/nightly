@@ -43,10 +43,10 @@ jobs:
         shell: nu {0}
         run: |
           const MAX_COUNT = 12
-          const RELEASE_INTERVAL = 28
+          const RELEASE_INTERVAL = 28day
           const DATE_FORMAT = '%Y/%m/%d'
           const START_DATE = '2024/10/15'
-          let releaseDays =  1..$MAX_COUNT | each {|it| ($START_DATE | into datetime) + ($'($RELEASE_INTERVAL * $it)day' | into duration) | format date $DATE_FORMAT }
+          let releaseDays =  1..$MAX_COUNT | each {|it| ($START_DATE | into datetime) + ($RELEASE_INTERVAL * $it) | format date $DATE_FORMAT }
           print $'Checking for the following release day:(char nl)'
           $env.config.table.mode = 'psql'
           $releaseDays | print
