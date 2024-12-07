@@ -36,7 +36,7 @@ jobs:
       - name: Setup Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: 0.99.0
+          version: 0.100.0
 
       # Synchronize the main branch of nightly repo with the main branch of Nushell official repo
       - name: Pre Release
