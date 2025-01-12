@@ -89,8 +89,14 @@ jobs:
           $'build_date=($date)(char nl)' o>> $env.GITHUB_OUTPUT
           $'nightly_tag=($nightly_tag)(char nl)' o>> $env.GITHUB_OUTPUT
           if (git ls-remote --tags origin $nightly_tag | is-empty) {
+            open Cargo.toml
+              | update package.version $'($version)-nightly.($build)'
+              | save -f Cargo.toml
+            git add Cargo.toml
+            git commit -m $'Update version to ($version)-nightly.($build)'
             git tag -a $nightly_tag -m $'Nightly build from ($sha_short)'
             git push origin --tags
+            git push origin main -f
           }
 
   release:
