@@ -94,6 +94,9 @@ jobs:
                   | str replace --all $'version = "($version)"' $'version = "($version)-nightly.($build)"'
                   | save --force $file.name
             }
+            # Disable the following two workflows for the automatic committed changes
+            rm .github/workflows/ci.yml
+            rm .github/workflows/audit.yml
             git add .
             git commit -m $'Update version to ($version)-nightly.($build)'
             git tag -a $nightly_tag -m $'Nightly build from ($sha_short)'
