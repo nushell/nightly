@@ -79,6 +79,13 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
             $env.CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER = 'riscv64-linux-gnu-gcc'
             cargo-build-nu
         }
+        'riscv64gc-unknown-linux-musl' => {
+            aria2c https://musl.cc/riscv64-linux-musl-cross.tgz
+            tar -xf riscv64-linux-musl-cross.tgz -C $env.HOME
+            $env.PATH = ($env.PATH | split row (char esep) | prepend $'($env.HOME)/riscv64-linux-musl-cross/bin')
+            $env.CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_LINKER = 'riscv64-linux-musl-gcc'
+            cargo-build-nu
+        }
         'armv7-unknown-linux-gnueabihf' => {
             sudo apt-get install pkg-config gcc-arm-linux-gnueabihf -y
             $env.CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER = 'arm-linux-gnueabihf-gcc'
