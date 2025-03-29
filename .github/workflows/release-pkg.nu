@@ -114,6 +114,19 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
     }
 }
 
+if $os in [alpine] {
+    match $target {
+        'riscv64gc-unknown-linux-musl' => {
+            apk add musl-dev binutils-riscv64
+            cargo-build-nu
+        }
+        'loongarch64-unknown-linux-musl' => {
+            cargo-build-nu
+        }
+        _ => { cargo-build-nu }
+    }
+}
+
 # ----------------------------------------------------------------------------
 # Build for Windows without static-link-openssl feature
 # ----------------------------------------------------------------------------
