@@ -23,35 +23,61 @@ jobs:
       fail-fast: false
       matrix:
         target:
+        - aarch64-apple-darwin
+        - x86_64-apple-darwin
+        - x86_64-pc-windows-msvc
+        - aarch64-pc-windows-msvc
+        - x86_64-unknown-linux-gnu
+        - x86_64-unknown-linux-musl
+        - aarch64-unknown-linux-gnu
+        - aarch64-unknown-linux-musl
+        - armv7-unknown-linux-gnueabihf
+        - armv7-unknown-linux-musleabihf
+        - riscv64gc-unknown-linux-gnu
         - riscv64gc-unknown-linux-musl
-        - loongarch64-unknown-linux-musl
+        - loongarch64-unknown-linux-gnu
         extra: ['bin']
         include:
+        - target: aarch64-apple-darwin
+          os: macos-latest
+        - target: x86_64-apple-darwin
+          os: macos-latest
+        - target: x86_64-pc-windows-msvc
+          extra: 'bin'
+          os: windows-latest
+        - target: x86_64-pc-windows-msvc
+          extra: msi
+          os: windows-latest
+        - target: aarch64-pc-windows-msvc
+          extra: 'bin'
+          os: windows-latest
+        - target: aarch64-pc-windows-msvc
+          extra: msi
+          os: windows-latest
+        - target: x86_64-unknown-linux-gnu
+          os: ubuntu-22.04
+        - target: x86_64-unknown-linux-musl
+          os: ubuntu-22.04
+        - target: aarch64-unknown-linux-gnu
+          os: ubuntu-22.04
+        - target: aarch64-unknown-linux-musl
+          os: ubuntu-22.04
+        - target: armv7-unknown-linux-gnueabihf
+          os: ubuntu-22.04
+        - target: armv7-unknown-linux-musleabihf
+          os: ubuntu-22.04
+        - target: riscv64gc-unknown-linux-gnu
+          os: ubuntu-latest
         - target: riscv64gc-unknown-linux-musl
-          image: alpine:latest
           os: ubuntu-latest
-        - target: loongarch64-unknown-linux-musl
-          image: alpine:latest
-          os: ubuntu-latest
+        - target: loongarch64-unknown-linux-gnu
+          os: ubuntu-22.04
 
     runs-on: ${{matrix.os}}
-    container:
-      image: ${{matrix.image}}
-      options: --entrypoint /bin/sh
 
     steps:
-    - uses: actions/checkout@v4.1.7
-    - name: Prepare Build Env for Alpine
-      shell: sh
-      run: |
-        apk update
-        apk add bash curl
-        # Fix Error loading shared library libgcc_s.so.1: No such file or directory
-        apk add libgcc
-        # Install build tools including the cc linker
-        apk add build-base
-        # Ensure Consistent Home Directory
-        echo "HOME=/root" >> $GITHUB_ENV
+    - uses: actions/checkout@v4
+
     - name: Update Rust Toolchain Target
       run: |
         echo "targets = ['${{matrix.target}}']" >> rust-toolchain.toml
@@ -64,17 +90,15 @@ jobs:
         rustflags: ''
 
     - name: Setup Nushell
-      run: |
-        echo "https://alpine.fury.io/nushell/" | tee -a /etc/apk/repositories
-        apk update || true
-        apk add --allow-untrusted nushell
-        nu -c '$nu.current-exe | print; version'
+      uses: hustcer/setup-nu@v3
+      with:
+        version: 0.103.0
 
     - name: Release Nu Binary
       id: nu
       run: nu .github/workflows/release-pkg.nu
       env:
-        OS: alpine
+        OS: ${{ matrix.os }}
         REF: ${{ github.ref }}
         TARGET: ${{ matrix.target }}
         _EXTRA_: ${{ matrix.extra }}
