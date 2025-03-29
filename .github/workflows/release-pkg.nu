@@ -80,6 +80,7 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
             cargo-build-nu
         }
         'riscv64gc-unknown-linux-musl' => {
+            sudo apt-get install pkg-config libssl-dev -y
             aria2c https://musl.cc/riscv64-linux-musl-cross.tgz
             tar -xf riscv64-linux-musl-cross.tgz -C $env.HOME
             $env.PATH = ($env.PATH | split row (char esep) | prepend $'($env.HOME)/riscv64-linux-musl-cross/bin')
@@ -169,9 +170,9 @@ For more information, refer to https://www.nushell.sh/book/plugins.html
 
 print $'(char nl)Check binary release version detail:'; hr-line
 let ver = if $os == 'windows-latest' {
-    (do -i { .\output\nu.exe -c 'version' }) | str join
+    (do -i { .\output\nu.exe -c 'version' }) | default '' | str join
 } else {
-    (do -i { ./output/nu -c 'version' }) | str join
+    (do -i { ./output/nu -c 'version' }) | default '' | str join
 }
 if ($ver | str trim | is-empty) {
     print $'(ansi r)Incompatible Nu binary: The binary cross compiled is not runnable on current arch...(ansi reset)'
