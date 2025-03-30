@@ -86,6 +86,10 @@ jobs:
       options: --platform linux/${{matrix.arch}}
 
     steps:
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: linux/riscv64,linux/loong64
     - uses: actions/checkout@v4
 
     - name: Prepare Build Env for Alpine
