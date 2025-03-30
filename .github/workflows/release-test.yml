@@ -83,7 +83,7 @@ jobs:
     runs-on: ${{matrix.os}}
     container:
       image: ${{matrix.image}}
-      options: --entrypoint /bin/sh --platform linux/${{matrix.arch}}
+      options: --platform linux/${{matrix.arch}}
 
     steps:
     - uses: actions/checkout@v4
