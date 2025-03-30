@@ -23,62 +23,18 @@ jobs:
       fail-fast: false
       matrix:
         target:
-        # - aarch64-apple-darwin
-        # - x86_64-apple-darwin
-        # - x86_64-pc-windows-msvc
-        # - aarch64-pc-windows-msvc
-        # - x86_64-unknown-linux-gnu
-        # - x86_64-unknown-linux-musl
-        # - aarch64-unknown-linux-gnu
-        # - aarch64-unknown-linux-musl
-        # - armv7-unknown-linux-gnueabihf
-        # - armv7-unknown-linux-musleabihf
-        # - riscv64gc-unknown-linux-gnu
         - riscv64gc-unknown-linux-musl
-        # - loongarch64-unknown-linux-gnu
         - loongarch64-unknown-linux-musl
         extra: ['bin']
         include:
-        # - target: aarch64-apple-darwin
-        #   os: macos-latest
-        # - target: x86_64-apple-darwin
-        #   os: macos-latest
-        # - target: x86_64-pc-windows-msvc
-        #   extra: 'bin'
-        #   os: windows-latest
-        # - target: x86_64-pc-windows-msvc
-        #   extra: msi
-        #   os: windows-latest
-        # - target: aarch64-pc-windows-msvc
-        #   extra: 'bin'
-        #   os: windows-latest
-        # - target: aarch64-pc-windows-msvc
-        #   extra: msi
-        #   os: windows-latest
-        # - target: x86_64-unknown-linux-gnu
-        #   os: ubuntu-22.04
-        # - target: x86_64-unknown-linux-musl
-        #   os: ubuntu-22.04
-        # - target: aarch64-unknown-linux-gnu
-        #   os: ubuntu-22.04
-        # - target: aarch64-unknown-linux-musl
-        #   os: ubuntu-22.04
-        # - target: armv7-unknown-linux-gnueabihf
-        #   os: ubuntu-22.04
-        # - target: armv7-unknown-linux-musleabihf
-        #   os: ubuntu-22.04
-        # - target: riscv64gc-unknown-linux-gnu
-        #   os: ubuntu-latest
         - target: riscv64gc-unknown-linux-musl
           os: ubuntu-latest
-          image: alpine:latest
           arch: riscv64
-        # - target: loongarch64-unknown-linux-gnu
-        #   os: ubuntu-22.04
+          image: alpine:latest
         - target: loongarch64-unknown-linux-musl
           os: ubuntu-22.04
-          image: ghcr.io/loong64/alpine:3.21
           arch: loong64
+          image: ghcr.io/loong64/alpine:3.21
 
     runs-on: ${{matrix.os}}
     container:
@@ -90,6 +46,8 @@ jobs:
       uses: docker/setup-qemu-action@v3
       with:
         platforms: linux/riscv64,linux/loong64
+        image: tonistiigi/binfmt:latest
+
     - uses: actions/checkout@v4
 
     - name: Prepare Build Env for Alpine
