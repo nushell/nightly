@@ -23,18 +23,25 @@ jobs:
       fail-fast: false
       matrix:
         target:
-        - riscv64gc-unknown-linux-musl
-        - loongarch64-unknown-linux-musl
+        # - riscv64gc-unknown-linux-musl
+        # - loongarch64-unknown-linux-musl
+        - aarch64-pc-windows-msvc
         extra: ['bin']
         include:
-        - target: riscv64gc-unknown-linux-musl
-          os: ubuntu-latest
-          arch: riscv64
-          image: alpine:latest
-        - target: loongarch64-unknown-linux-musl
-          os: ubuntu-22.04
-          arch: loong64
-          image: ghcr.io/loong64/alpine:3.21
+        - target: aarch64-pc-windows-msvc
+          extra: 'bin'
+          os: windows-11-arm
+        - target: aarch64-pc-windows-msvc
+          extra: msi
+          os: windows-11-arm
+        # - target: riscv64gc-unknown-linux-musl
+        #   os: ubuntu-latest
+        #   arch: riscv64
+        #   image: alpine:latest
+        # - target: loongarch64-unknown-linux-musl
+        #   os: ubuntu-22.04
+        #   arch: loong64
+        #   image: ghcr.io/loong64/alpine:3.21
 
     runs-on: ${{matrix.os}}
     container:
@@ -42,52 +49,63 @@ jobs:
       options: --platform linux/${{matrix.arch}}
 
     steps:
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: linux/riscv64,linux/loong64
-        image: tonistiigi/binfmt:latest
+    # - name: Set up QEMU
+    #   uses: docker/setup-qemu-action@v3
+    #   with:
+    #     platforms: linux/riscv64,linux/loong64
+    #     image: tonistiigi/binfmt:latest
 
     - uses: actions/checkout@v4
 
-    - name: Prepare Build Env for Alpine
-      shell: sh
-      run: |
-        apk update
-        apk add bash curl
-        # Fix Error loading shared library libgcc_s.so.1: No such file or directory
-        apk add libgcc
-        # Install build tools including the cc linker
-        apk add build-base
-        # Ensure Consistent Home Directory
-        echo "HOME=/root" >> $GITHUB_ENV
+    # - name: Prepare Build Env for Alpine
+    #   shell: sh
+    #   run: |
+    #     apk update
+    #     apk add bash curl
+    #     # Fix Error loading shared library libgcc_s.so.1: No such file or directory
+    #     apk add libgcc
+    #     # Install build tools including the cc linker
+    #     apk add build-base
+    #     # Ensure Consistent Home Directory
+    #     echo "HOME=/root" >> $GITHUB_ENV
 
     - name: Update Rust Toolchain Target
       run: |
         echo "targets = ['${{matrix.target}}']" >> rust-toolchain.toml
 
     - name: Setup Rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+      uses: actions-rust-lang/setup-rust-toolchain@v1.11.0
       # WARN: Keep the rustflags to prevent from the winget submission error: `CAQuietExec: Error 0xc0000135`
       with:
         cache: false
         rustflags: ''
 
-    - name: Setup Nushell
-      run: |
-        echo "https://alpine.fury.io/nushell/" | tee -a /etc/apk/repositories
-        apk update || true
-        apk add --allow-untrusted nushell
-        nu -c '$nu.current-exe | print; version'
+    # - name: Setup Nushell
+    #   run: |
+    #     echo "https://alpine.fury.io/nushell/" | tee -a /etc/apk/repositories
+    #     apk update || true
+    #     apk add --allow-untrusted nushell
+    #     nu -c '$nu.current-exe | print; version'
 
-    - name: Release Nu Binary
+    # - name: Release Nu Binary
+    #   id: nu
+    #   run: nu .github/workflows/release-pkg.nu
+    #   env:
+    #     # OS: alpine
+    #     REF: ${{ github.ref }}
+    #     TARGET: ${{ matrix.target }}
+    #     _EXTRA_: ${{ matrix.extra }}
+
+    - name: Build Nu by Pwsh
       id: nu
-      run: nu .github/workflows/release-pkg.nu
-      env:
-        OS: alpine
-        REF: ${{ github.ref }}
-        TARGET: ${{ matrix.target }}
-        _EXTRA_: ${{ matrix.extra }}
+      shell: pwsh
+      run: |
+        $env:OS = 'windows'
+        $env:REF = '${{ github.ref }}'
+        $env:TARGET = '${{ matrix.target }}'
+        $env:_EXTRA_ = '${{ matrix.extra }}'
+        cargo build --release --all --target aarch64-pc-windows-msvc
+        ls -alh ./target/${{ matrix.target }}/release
 
     # REF: https://github.com/marketplace/actions/gh-release
     - name: Publish Archive
@@ -99,25 +117,25 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  sha256sum:
-    name: Create Sha256sum
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download Release Archives
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: >-
-        gh release download ${{ github.ref_name }}
-        --repo ${{ github.repository }}
-        --pattern '*'
-        --dir release
-    - name: Create Checksums
-      run: cd release && shasum -a 256 * > ../SHA256SUMS
-    - name: Publish Checksums
-      uses: softprops/action-gh-release@v2.0.8
-      with:
-        draft: true
-        files: SHA256SUMS
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # sha256sum:
+  #   name: Create Sha256sum
+  #   needs: release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Download Release Archives
+  #     env:
+  #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     run: >-
+  #       gh release download ${{ github.ref_name }}
+  #       --repo ${{ github.repository }}
+  #       --pattern '*'
+  #       --dir release
+  #   - name: Create Checksums
+  #     run: cd release && shasum -a 256 * > ../SHA256SUMS
+  #   - name: Publish Checksums
+  #     uses: softprops/action-gh-release@v2.0.8
+  #     with:
+  #       draft: true
+  #       files: SHA256SUMS
+  #     env:
+  #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
