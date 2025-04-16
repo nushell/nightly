@@ -69,6 +69,20 @@ jobs:
     #     # Ensure Consistent Home Directory
     #     echo "HOME=/root" >> $GITHUB_ENV
 
+    - name: Install Rustup and Wix Toolset
+      shell: pwsh
+      if: ${{ matrix.os == 'windows-11-arm' }}
+      run: |
+        curl.exe -sSf -o rustup-init.exe https://win.rustup.rs
+        ./rustup-init.exe -y
+        echo "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+        choco install wixtoolset --version=3.11.2
+        # Update GITHUB_PATH to include Wix Toolset
+        $env:WIX = "C:\Program Files (x86)\WiX Toolset v3.11\bin"
+        echo "$env:WIX" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        $env:PATH = "$env:WIX;$env:PATH"
+
     - name: Update Rust Toolchain Target
       run: |
         echo "targets = ['${{matrix.target}}']" >> rust-toolchain.toml
@@ -87,25 +101,29 @@ jobs:
     #     apk add --allow-untrusted nushell
     #     nu -c '$nu.current-exe | print; version'
 
-    # - name: Release Nu Binary
-    #   id: nu
-    #   run: nu .github/workflows/release-pkg.nu
-    #   env:
-    #     # OS: alpine
-    #     REF: ${{ github.ref }}
-    #     TARGET: ${{ matrix.target }}
-    #     _EXTRA_: ${{ matrix.extra }}
+    - name: Release Nu Binary
+      id: nu
+      if: ${{ matrix.os != 'windows-11-arm' }}
+      run: nu .github/workflows/release-pkg.nu
+      env:
+        # OS: alpine
+        REF: ${{ github.ref }}
+        TARGET: ${{ matrix.target }}
+        _EXTRA_: ${{ matrix.extra }}
 
     - name: Build Nu by Pwsh
-      id: nu
+      id: nu0
       shell: pwsh
+      if: ${{ matrix.os == 'windows-11-arm' }}
       run: |
         $env:OS = 'windows'
         $env:REF = '${{ github.ref }}'
         $env:TARGET = '${{ matrix.target }}'
         $env:_EXTRA_ = '${{ matrix.extra }}'
         cargo build --release --all --target aarch64-pc-windows-msvc
-        ls -alh ./target/${{ matrix.target }}/release
+        cp ./target/${{ matrix.target }}/release/nu.exe .
+        ./nu.exe -c 'version'
+        ./nu.exe ${{github.workspace}}/.github/workflows/release-pkg.nu
 
     # REF: https://github.com/marketplace/actions/gh-release
     - name: Publish Archive
@@ -113,7 +131,9 @@ jobs:
       if: ${{ startsWith(github.ref, 'refs/tags/') }}
       with:
         draft: true
-        files: ${{ steps.nu.outputs.archive }}
+        files: |
+          ${{ steps.nu.outputs.archive }}
+          ${{ steps.nu0.outputs.archive }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
