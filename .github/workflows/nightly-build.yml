@@ -74,7 +74,9 @@ jobs:
           let version = open Cargo.toml | get package.version
           let sha_short = (git rev-parse --short origin/main | str trim | str substring 0..6)
           let latest_meta = http get https://api.github.com/repos/nushell/nightly/releases
-                            | sort-by -r created_at | get tag_name?.0? | default ''
+                            | sort-by -r created_at
+                            | where tag_name =~ nightly
+                            | get tag_name?.0? | default ''
                             | parse '{version}-nightly.{build}+{hash}'
           if ($latest_meta.0?.hash? | default '') == $sha_short {
             print $'(ansi g)Latest nightly build is up-to-date, skip rebuilding.(ansi reset)'
