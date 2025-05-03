@@ -17,6 +17,9 @@
     UpgradeCode="$(var.UpgradeCode)"
     Manufacturer="$(var.Manufacturer)" >
 
+    <!-- Embed cab media to MSI file -->
+    <Media Id="1" Cabinet="cab1.cab" EmbedCab="yes" />
+
     <!-- Allow install for Current User Or Machine -->
     <Property Id="WixUISupportPerUser"  Value="1" />
     <Property Id="WixUISupportPerMachine" Value="1" />
