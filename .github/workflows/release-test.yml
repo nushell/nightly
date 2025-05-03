@@ -108,6 +108,8 @@ jobs:
       if: ${{ startsWith(github.ref, 'refs/tags/') }}
       with:
         files: |
+          ${{ steps.nu.outputs.msi }}
+          ${{ steps.nu0.outputs.msi }}
           ${{ steps.nu.outputs.archive }}
           ${{ steps.nu0.outputs.archive }}
       env:

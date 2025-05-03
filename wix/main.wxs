@@ -18,10 +18,10 @@
     Manufacturer="$(var.Manufacturer)" >
 
     <!-- Allow install for Current User Or Machine -->
-    <Property Id="MSIINSTALLPERUSER" Secure="yes" Value="1" />
-    <Property Id="WixAppFolder"        Value="WixPerUserFolder" />
     <Property Id="WixUISupportPerUser"  Value="1" />
     <Property Id="WixUISupportPerMachine" Value="1" />
+    <Property Id="MSIINSTALLPERUSER" Secure="yes" Value="1" />
+    <Property Id="WixAppFolder"        Value="WixPerUserFolder" />
 
     <Property Id="ApplicationFolderName" Value="$(var.ApplicationFolderName)" />
 
