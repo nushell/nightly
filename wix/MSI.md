@@ -7,19 +7,19 @@
 
 2. Building the MSI:
 
-   - For x64 architecture: `dotnet build -c Release -p:Platform=x64`
-   - For ARM64 architecture: `dotnet build -c Release -p:Platform=arm64`
+   - For x64 architecture: `dotnet build -c Release -p:Platform=x64 -p:NU_RELEASE_VERSION=0.103.0`
+   - For ARM64 architecture: `dotnet build -c Release -p:Platform=arm64 -p:NU_RELEASE_VERSION=0.103.0`
 
 3. Installation Options:
 
-   - User scope installation: `winget install nushell.msi --scope user`
-   - Machine scope installation: `winget install nushell.msi --scope machine` (requires administrator privileges)
+   - User scope installation: `winget install nushell-x64.msi --scope user`
+   - Machine scope installation: `winget install nushell-x64.msi --scope machine` (requires administrator privileges)
 
    # For per-user Installation with `msiexec`
-   `msiexec /i bin\x64\Release\nushell-x64.msi MSIINSTALLPERUSER=1 ALLUSERS=""`
+   `msiexec /i bin\x64\Release\nushell-x64.msi MSIINSTALLPERUSER=1`
 
    # For per-machine Installation with `msiexec` (requires admin privileges)
-   `msiexec /i bin\x64\Release\nushell-x64.msi ALLUSERS=1 MSIINSTALLPERUSER=""`
+   `msiexec /i bin\x64\Release\nushell-x64.msi ALLUSERS=1`
 
 ## Feature Description
 

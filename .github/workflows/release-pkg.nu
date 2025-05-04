@@ -201,10 +201,8 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
         # Wix need the binaries be stored in nu folder
         cp -r ($'($dist)/*' | into glob) nu/
         ls -f nu/* | print
-        # Will be used in the Wix project
-        $'NU_RELEASE_VERSION=($version)(char nl)' o>> $env.GITHUB_ENV
         let arch = if $nu.os-info.arch =~ 'x86_64' { 'x64' } else { 'arm64' }
-        dotnet build -c Release $'-p:Platform=($arch)'
+        dotnet build -c Release $'-p:Platform=($arch)' $'-p:NU_RELEASE_VERSION=($version)'
         glob **/*.msi | print
         # Workaround for https://github.com/softprops/action-gh-release/issues/280
         let wixRelease = (glob **/*.msi | where $it =~ bin | get 0 | str replace --all '\' '/')
