@@ -200,7 +200,7 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
         # Wix need the binaries be stored in nu folder
         cp -r ($'($dist)/*' | into glob) nu/
         ls -f nu/* | print
-        $env.NU_VERSION = $version
+        # Will be used in the Wix project
         $'NU_VERSION=($version)(char nl)' o>> $env.GITHUB_ENV
         let arch = if $nu.os-info.arch =~ 'x86_64' { 'x64' } else { 'arm64' }
         dotnet build -c Release $'-p:Platform=($arch)'

@@ -9,9 +9,12 @@
   <?define Manufacturer = "The Nushell Project Developers" ?>
   <?define UpgradeCode = "82D756D2-19FA-4F09-B10F-64942E89F364" ?>
 
+  <!-- https://docs.firegiant.com/wix/schema/wxs/package/ -->
   <Package
     Compressed="yes"
+    Id="Nushell.Nushell"
     InstallerVersion="500"
+    Scope="perUserOrMachine"
     Name="$(var.ProductName)"
     Version="$(var.ProductVersion)"
     UpgradeCode="$(var.UpgradeCode)"
