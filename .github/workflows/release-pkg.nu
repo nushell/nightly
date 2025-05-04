@@ -192,8 +192,9 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
         echo $"archive=($archive)(char nl)" o>> $env.GITHUB_OUTPUT
     }
 
-    # Create extra Windows msi release package if dotnet is available
-    if (which dotnet | length) > 0 {
+    # Create extra Windows msi release package if dotnet and wix are available
+    let installed = [dotnet wix] | all { (which $in | length) > 0 }
+    if $installed and (wix --version | split row . | first | into int) >= 6 {
 
         print $'(char nl)Start creating Windows msi package with the following contents...'
         cd $src; cd wix; hr-line; mkdir nu
@@ -201,7 +202,7 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
         cp -r ($'($dist)/*' | into glob) nu/
         ls -f nu/* | print
         # Will be used in the Wix project
-        $'NU_VERSION=($version)(char nl)' o>> $env.GITHUB_ENV
+        $'NU_RELEASE_VERSION=($version)(char nl)' o>> $env.GITHUB_ENV
         let arch = if $nu.os-info.arch =~ 'x86_64' { 'x64' } else { 'arm64' }
         dotnet build -c Release $'-p:Platform=($arch)'
         glob **/*.msi | print
