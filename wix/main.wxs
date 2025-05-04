@@ -32,7 +32,6 @@
     <Property Id="WixUISupportPerUser" Value="1" />
     <Property Id="WixUISupportPerMachine" Value="1" />
     <Property Id="WixAppFolder" Value="WixPerUserFolder" />
-    <Property Id="MSIINSTALLPERUSER" Secure="yes" Value="1" />
 
     <Property Id="ApplicationFolderName" Value="$(var.ApplicationFolderName)" />
 
