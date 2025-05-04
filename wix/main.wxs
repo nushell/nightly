@@ -22,7 +22,6 @@
 
     <MajorUpgrade
       Schedule="afterInstallInitialize"
-      RemoveExistingProducts="afterInstallInitialize"
       DowngradeErrorMessage="A newer version of [ProductName] is already installed. Setup will now exit."/>
 
     <!-- Embed cab media to MSI file -->
