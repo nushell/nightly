@@ -21,10 +21,10 @@
     <Media Id="1" Cabinet="cab1.cab" EmbedCab="yes" />
 
     <!-- Allow install for Current User Or Machine -->
-    <Property Id="WixUISupportPerUser"  Value="1" />
+    <Property Id="WixUISupportPerUser" Value="1" />
     <Property Id="WixUISupportPerMachine" Value="1" />
+    <Property Id="WixAppFolder" Value="WixPerUserFolder" />
     <Property Id="MSIINSTALLPERUSER" Secure="yes" Value="1" />
-    <Property Id="WixAppFolder"        Value="WixPerUserFolder" />
 
     <Property Id="ApplicationFolderName" Value="$(var.ApplicationFolderName)" />
 
