@@ -20,6 +20,11 @@
     UpgradeCode="$(var.UpgradeCode)"
     Manufacturer="$(var.Manufacturer)" >
 
+    <MajorUpgrade
+      Schedule="afterInstallInitialize"
+      RemoveExistingProducts="afterInstallInitialize"
+      DowngradeErrorMessage="A newer version of [ProductName] is already installed. Setup will now exit."/>
+
     <!-- Embed cab media to MSI file -->
     <Media Id="1" Cabinet="cab1.cab" EmbedCab="yes" />
 
@@ -90,7 +95,7 @@
                     Action="set"
                     System="no"/>
         <RegistryValue Root="HKCU"
-                      Key="Software\Nushell"
+                      Key="Software\nu"
                       Name="installed"
                       Type="integer"
                       Value="1"
@@ -107,7 +112,7 @@
                     Action="set"
                     System="yes"/>
         <RegistryValue Root="HKLM"
-                      Key="Software\Nushell"
+                      Key="Software\nu"
                       Name="installed"
                       Type="integer"
                       Value="1"
