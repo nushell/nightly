@@ -145,11 +145,13 @@
     <?endif?>
 
     <SetProperty Id="INSTALLDIR"
+                 Action="SetINSTALLDIR_User"
                  Value="[INSTALLDIR_USER]"
                  After="AppSearch"
                  Condition="MSIINSTALLPERUSER=1"
                  Sequence="both"/>
     <SetProperty Id="BINDIR"
+                 Action="SetBINDIR_User"
                  Value="[BINDIR_USER]"
                  After="AppSearch"
                  Condition="MSIINSTALLPERUSER=1"
@@ -157,11 +159,13 @@
 
     <!-- If Installed with ALLUSERS=1 set the default Install dir to ProgramFiles64Folder -->
     <SetProperty Id="INSTALLDIR"
+             Action="SetINSTALLDIR_Machine"
              Value="[ProgramFiles64Folder][ApplicationFolderName]"
              After="AppSearch"
              Condition="ALLUSERS=1"
              Sequence="both"/>
     <SetProperty Id="BINDIR"
+             Action="SetBINDIR_Machine"
              Value="[ProgramFiles64Folder][ApplicationFolderName]\bin"
              After="AppSearch"
              Condition="ALLUSERS=1"
