@@ -1,33 +1,33 @@
-## 使用说明
+## Usage Instructions
 
-1. 准备工作 ：
+1. Preparation:
 
-   - 确保已安装 Wix Toolset 6
-   - 创建一个简单的 license.rtf 文件作为许可协议
+   - Ensure Wix Toolset 6 is installed: `dotnet tool install --global wix --version 6.0.0`
+   - Create a simple License.rtf file as the license agreement
 
-2. 构建 MSI ：
+2. Building the MSI:
 
-   - 对于 x64 架构： `dotnet build -c Release -p:Platform=x64`
-   - 对于 ARM64 架构： `dotnet build -c Release -p:Platform=arm64`
+   - For x64 architecture: `dotnet build -c Release -p:Platform=x64`
+   - For ARM64 architecture: `dotnet build -c Release -p:Platform=arm64`
 
-3. 安装选项 ：
+3. Installation Options:
 
-   - 用户范围安装： `winget install nushell.msi --scope user`
-   - 机器范围安装： `winget install nushell.msi --scope machine` （需要管理员权限）
+   - User scope installation: `winget install nushell.msi --scope user`
+   - Machine scope installation: `winget install nushell.msi --scope machine` (requires administrator privileges)
 
-   # For per-user installation
+   # For per-user Installation with `msiexec`
    `msiexec /i bin\x64\Release\nushell-x64.msi MSIINSTALLPERUSER=1 ALLUSERS=""`
 
-   # For per-machine installation (requires admin privileges)
+   # For per-machine Installation with `msiexec` (requires admin privileges)
    `msiexec /i bin\x64\Release\nushell-x64.msi ALLUSERS=1 MSIINSTALLPERUSER=""`
 
-## 特性说明
+## Feature Description
 
-1. 双重安装范围 ：支持用户和机器范围安装
-2. `PATH` 环境变量 ：自动将安装目录添加到系统 `PATH`
-3. 升级保留 ：升级时保留原安装路径
-4. 多架构支持 ：支持 `x86_64` 和 `ARM64` 架构
-5. 系统兼容性 ：兼容 Windows 7/10/11
+1. Dual Installation Scope: Supports both user and machine scope installation
+2. `PATH` Environment Variable: Automatically adds the installation directory to the `PATH` ENV var
+3. Upgrade Retention: Retains the original installation path during upgrades
+4. Multi-architecture Support: Supports `x86_64` and `ARM64` architectures
+5. System Compatibility: Compatible with Windows 7/10/11
 
 ## REF
 
