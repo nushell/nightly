@@ -30,11 +30,13 @@
     <!-- Allow install for Current User Or Machine -->
     <Property Id="WixUISupportPerUser" Value="1" />
     <Property Id="WixUISupportPerMachine" Value="1" />
+    <!-- Install for PerUser by default -->
+    <!-- If set to WixPerMachineFolder will install for PerMachine by default -->
     <Property Id="WixAppFolder" Value="WixPerUserFolder" />
 
     <Property Id="ApplicationFolderName" Value="$(var.ApplicationFolderName)" />
 
-    <!-- Machine Install by Default -->
+    <!-- Per Machine Install -->
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLDIR" Name="$(var.ApplicationFolderName)">
         <Directory Id="BINDIR" Name="bin" />
@@ -152,5 +154,17 @@
                  After="AppSearch"
                  Condition="MSIINSTALLPERUSER=1"
                  Sequence="both"/>
+
+    <!-- If Installed with ALLUSERS=1 set the default Install dir to ProgramFiles64Folder -->
+    <SetProperty Id="INSTALLDIR"
+             Value="[ProgramFiles64Folder][ApplicationFolderName]"
+             After="AppSearch"
+             Condition="ALLUSERS=1"
+             Sequence="both"/>
+    <SetProperty Id="BINDIR"
+             Value="[ProgramFiles64Folder][ApplicationFolderName]\bin"
+             After="AppSearch"
+             Condition="ALLUSERS=1"
+             Sequence="both"/>
   </Package>
 </Wix>
