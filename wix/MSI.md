@@ -7,8 +7,8 @@
 
 2. Building the MSI:
 
-   - For x64 architecture: `dotnet build -c Release -p:Platform=x64 -p:NU_RELEASE_VERSION=0.103.0`
-   - For ARM64 architecture: `dotnet build -c Release -p:Platform=arm64 -p:NU_RELEASE_VERSION=0.103.0`
+   - For x64 architecture: `NU_RELEASE_VERSION=0.103.0 dotnet build -c Release -p:Platform=x64`
+   - For ARM64 architecture: `NU_RELEASE_VERSION=0.103.0 dotnet build -c Release -p:Platform=arm64`
 
 3. Installation Options:
 
