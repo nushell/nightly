@@ -12,12 +12,12 @@
 
   <PropertyGroup Condition=" '$(Platform)' == 'x64' ">
     <InstallerPlatform>x64</InstallerPlatform>
-    <DefineConstants>$(DefineConstants);WixUtilCA=Wix4UtilCA_X64</DefineConstants>
+    <DefineConstants>$(DefineConstants)</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Platform)' == 'arm64' ">
     <InstallerPlatform>arm64</InstallerPlatform>
-    <DefineConstants>$(DefineConstants);WixUtilCA=Wix4UtilCA_ARM64</DefineConstants>
+    <DefineConstants>$(DefineConstants)</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
