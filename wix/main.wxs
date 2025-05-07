@@ -219,7 +219,7 @@
                   Impersonate="yes"
                   Execute="deferred"
                   DllEntry="WixQuietExec"
-                  BinaryRef="Wix4UtilCA_X64" />
+                  BinaryRef="$(var.WixUtilCA)" />
 
     <InstallExecuteSequence>
       <Custom Action="ReplacePathsInWindowsTerminalProfile" Before="InstallFinalize"

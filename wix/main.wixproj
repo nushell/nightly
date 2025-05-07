@@ -4,7 +4,7 @@
     <OutputName>nu-$(Platform)</OutputName>
     <UpgradeCode>82D756D2-19FA-4F09-B10F-64942E89F364</UpgradeCode>
     <DefineConstants>
-      SourceDir=$(MSBuildProjectDirectory)\nu
+      SourceDir=$(MSBuildProjectDirectory)\nu;
     </DefineConstants>
     <SuppressValidation>true</SuppressValidation>
     <SuppressIces>ICE80</SuppressIces>
@@ -12,12 +12,12 @@
 
   <PropertyGroup Condition=" '$(Platform)' == 'x64' ">
     <InstallerPlatform>x64</InstallerPlatform>
-    <DefineConstants>$(DefineConstants)</DefineConstants>
+    <DefineConstants>$(DefineConstants);WixUtilCA=Wix4UtilCA_X64</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Platform)' == 'arm64' ">
     <InstallerPlatform>arm64</InstallerPlatform>
-    <DefineConstants>$(DefineConstants)</DefineConstants>
+    <DefineConstants>$(DefineConstants);WixUtilCA=Wix4UtilCA_ARM64</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
