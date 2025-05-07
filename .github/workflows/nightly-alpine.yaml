@@ -44,7 +44,7 @@ jobs:
         shell: nu {0}
         run: |
           let queryApi = http get https://api.github.com/repos/nushell/nightly/releases
-                                  | sort-by -r created_at | get 0.url
+                                  | sort-by -r created_at | where name =~ nightly | get 0.url
           $'NU_VERSION=nightly(char nl)' o>> $env.GITHUB_ENV
           $'RELEASE_QUERY_API=($queryApi)(char nl)' o>> $env.GITHUB_ENV
           $'BUILD_REF=(git rev-parse --short HEAD)(char nl)' o>> $env.GITHUB_ENV
