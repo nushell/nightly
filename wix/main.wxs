@@ -41,6 +41,20 @@
     <!-- If set to WixPerMachineFolder will install for PerMachine by default -->
     <Property Id="WixAppFolder" Value="WixLocalAppDataFolder" />
 
+    <!-- Workaround Wix Bug: https://github.com/wixtoolset/issues/issues/2165 -->
+    <!-- The suggested folder in the dest folder dialog should be C:\Program Files\nu -->
+    <CustomAction Id="Overwrite_WixSetDefaultPerMachineFolder" Property="WixPerMachineFolder"
+      Value="[ProgramFiles64Folder][ApplicationFolderName]" Execute="immediate" />
+    <CustomAction Id="Overwrite_ARPINSTALLLOCATION" Property="ARPINSTALLLOCATION"
+      Value="[ProgramFiles64Folder][ApplicationFolderName]" Execute="immediate" />
+    <InstallUISequence>
+      <Custom Action="Overwrite_WixSetDefaultPerMachineFolder" After="WixSetDefaultPerMachineFolder" />
+    </InstallUISequence>
+    <InstallExecuteSequence>
+      <Custom Action="Overwrite_WixSetDefaultPerMachineFolder" After="WixSetDefaultPerMachineFolder" />
+      <Custom Action="Overwrite_ARPINSTALLLOCATION" After="InstallValidate"/>
+    </InstallExecuteSequence>
+
     <!-- Enable UAC prompt when installing for all users -->
     <!-- <Property Id="MSIUSEREALADMINDETECTION" Value="1" /> -->
 
