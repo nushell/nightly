@@ -2,14 +2,15 @@
 # REF:
 #   1. https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstrategymatrixinclude
 #
-name: Create Release Draft
+name: Create Windows Release
 
 on:
   workflow_dispatch:
   push:
+    branches:
+    - release/msi-0.103
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+*'
-      - '!*nightly*'  # Don't trigger release for nightly tags
+    - 'v*'
 
 defaults:
   run:
@@ -23,45 +24,19 @@ jobs:
       fail-fast: false
       matrix:
         target:
-        - aarch64-apple-darwin
-        - x86_64-apple-darwin
         - x86_64-pc-windows-msvc
         - aarch64-pc-windows-msvc
-        - x86_64-unknown-linux-gnu
-        - x86_64-unknown-linux-musl
-        - aarch64-unknown-linux-gnu
-        - aarch64-unknown-linux-musl
-        - armv7-unknown-linux-gnueabihf
-        - armv7-unknown-linux-musleabihf
-        - riscv64gc-unknown-linux-gnu
-        - loongarch64-unknown-linux-gnu
+        extra: ['bin']
+
         include:
-        - target: aarch64-apple-darwin
-          os: macos-latest
-        - target: x86_64-apple-darwin
-          os: macos-latest
         - target: x86_64-pc-windows-msvc
+          extra: 'bin'
           os: windows-latest
         - target: aarch64-pc-windows-msvc
+          extra: 'bin'
           os: windows-11-arm
-        - target: x86_64-unknown-linux-gnu
-          os: ubuntu-22.04
-        - target: x86_64-unknown-linux-musl
-          os: ubuntu-22.04
-        - target: aarch64-unknown-linux-gnu
-          os: ubuntu-22.04
-        - target: aarch64-unknown-linux-musl
-          os: ubuntu-22.04
-        - target: armv7-unknown-linux-gnueabihf
-          os: ubuntu-22.04
-        - target: armv7-unknown-linux-musleabihf
-          os: ubuntu-22.04
-        - target: riscv64gc-unknown-linux-gnu
-          os: ubuntu-22.04
-        - target: loongarch64-unknown-linux-gnu
-          os: ubuntu-22.04
 
-    runs-on: ${{matrix.os}}
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -82,7 +57,7 @@ jobs:
         echo "targets = ['${{matrix.target}}']" >> rust-toolchain.toml
 
     - name: Setup Rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1.12.0
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       # WARN: Keep the rustflags to prevent from the winget submission error: `CAQuietExec: Error 0xc0000135`
       with:
         cache: false
@@ -102,6 +77,7 @@ jobs:
         OS: ${{ matrix.os }}
         REF: ${{ github.ref }}
         TARGET: ${{ matrix.target }}
+        _EXTRA_: ${{ matrix.extra }}
 
     - name: Build Nu for Windows ARM64
       id: nu0
@@ -111,18 +87,17 @@ jobs:
         $env:OS = 'windows'
         $env:REF = '${{ github.ref }}'
         $env:TARGET = '${{ matrix.target }}'
+        $env:_EXTRA_ = '${{ matrix.extra }}'
         cargo build --release --all --target aarch64-pc-windows-msvc
         cp ./target/${{ matrix.target }}/release/nu.exe .
         ./nu.exe -c 'version'
         ./nu.exe ${{github.workspace}}/.github/workflows/release-pkg.nu
 
-    # WARN: Don't upgrade this action due to the release per asset issue.
-    # See: https://github.com/softprops/action-gh-release/issues/445
+    # REF: https://github.com/marketplace/actions/gh-release
     - name: Publish Archive
-      uses: softprops/action-gh-release@v2.0.5
+      uses: softprops/action-gh-release@v2.0.8
       if: ${{ startsWith(github.ref, 'refs/tags/') }}
       with:
-        draft: true
         files: |
           ${{ steps.nu.outputs.msi }}
           ${{ steps.nu0.outputs.msi }}
@@ -131,25 +106,25 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  sha256sum:
-    needs: release
-    name: Create Sha256sum
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download Release Archives
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: >-
-        gh release download ${{ github.ref_name }}
-        --repo ${{ github.repository }}
-        --pattern '*'
-        --dir release
-    - name: Create Checksums
-      run: cd release && shasum -a 256 * > ../SHA256SUMS
-    - name: Publish Checksums
-      uses: softprops/action-gh-release@v2.0.5
-      with:
-        draft: true
-        files: SHA256SUMS
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # sha256sum:
+  #   name: Create Sha256sum
+  #   needs: release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Download Release Archives
+  #     env:
+  #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     run: >-
+  #       gh release download ${{ github.ref_name }}
+  #       --repo ${{ github.repository }}
+  #       --pattern '*'
+  #       --dir release
+  #   - name: Create Checksums
+  #     run: cd release && shasum -a 256 * > ../SHA256SUMS
+  #   - name: Publish Checksums
+  #     uses: softprops/action-gh-release@v2.0.8
+  #     with:
+  #       draft: true
+  #       files: SHA256SUMS
+  #     env:
+  #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

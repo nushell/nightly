@@ -117,14 +117,14 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
 # ----------------------------------------------------------------------------
 # Build for Windows without static-link-openssl feature
 # ----------------------------------------------------------------------------
-if $os in ['windows-latest'] {
+if $os =~ 'windows' {
     cargo-build-nu
 }
 
 # ----------------------------------------------------------------------------
 # Prepare for the release archive
 # ----------------------------------------------------------------------------
-let suffix = if $os == 'windows-latest' { '.exe' }
+let suffix = if $os =~ 'windows' { '.exe' }
 # nu, nu_plugin_* were all included
 let executable = $'target/($target)/release/($bin)*($suffix)'
 print $'Current executable file: ($executable)'
@@ -148,10 +148,10 @@ For more information, refer to https://www.nushell.sh/book/plugins.html
 [LICENSE ...(glob $executable)] | each {|it| cp -rv $it $dist } | flatten
 
 print $'(char nl)Check binary release version detail:'; hr-line
-let ver = if $os == 'windows-latest' {
-    (do -i { .\output\nu.exe -c 'version' }) | str join
+let ver = if $os =~ 'windows' {
+    (do -i { .\output\nu.exe -c 'version' }) | default '' | str join
 } else {
-    (do -i { ./output/nu -c 'version' }) | str join
+    (do -i { ./output/nu -c 'version' }) | default '' | str join
 }
 if ($ver | str trim | is-empty) {
     print $'(ansi r)Incompatible Nu binary: The binary cross compiled is not runnable on current arch...(ansi reset)'
@@ -175,53 +175,47 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
     tar -czf $archive $dest
     print $'archive: ---> ($archive)'; ls $archive
     # REF: https://github.blog/changelog/2022-10-11-github-actions-deprecating-save-state-and-set-output-commands/
-    echo $"archive=($archive)" | save --append $env.GITHUB_OUTPUT
+    echo $"archive=($archive)(char nl)" o>> $env.GITHUB_OUTPUT
 
-} else if $os == 'windows-latest' {
+} else if $os =~ 'windows' {
 
     let releaseStem = $'($bin)-($version)-($target)'
 
-    print $'(char nl)Download less related stuffs...'; hr-line
-    # todo: less-v661 is out but is released as a zip file. maybe we should switch to that and extract it?
-    aria2c https://github.com/jftuga/less-Windows/releases/download/less-v608/less.exe -o less.exe
-    # the below was renamed because it was failing to download for darren. it should work but it wasn't
-    # todo: maybe we should get rid of this aria2c dependency and just use http get?
-    #aria2c https://raw.githubusercontent.com/jftuga/less-Windows/master/LICENSE -o LICENSE-for-less.txt
-    aria2c https://github.com/jftuga/less-Windows/blob/master/LICENSE -o LICENSE-for-less.txt
-
-    # Create Windows msi release package
-    if (get-env _EXTRA_) == 'msi' {
-
-        let wixRelease = $'($src)/target/wix/($releaseStem).msi'
-        print $'(char nl)Start creating Windows msi package with the following contents...'
-        cd $src; hr-line
-        # Wix need the binaries be stored in target/release/
-        cp -r ($'($dist)/*' | into glob) target/release/
-        ls target/release/* | print
-        cargo install cargo-wix --version 0.3.8
-        cargo wix --no-build --nocapture --package nu --output $wixRelease
+    print $'(char nl)(ansi g)Archive contents:(ansi reset)'; hr-line; ls | print
+    let archive = $'($dist)/($releaseStem).zip'
+    7z a $archive ...(glob *)
+    let pkg = (ls -f $archive | get name)
+    if not ($pkg | is-empty) {
         # Workaround for https://github.com/softprops/action-gh-release/issues/280
-        let archive = ($wixRelease | str replace --all '\' '/')
-        print $'archive: ---> ($archive)';
-        echo $"archive=($archive)" | save --append $env.GITHUB_OUTPUT
+        let archive = ($pkg | get 0 | str replace --all '\' '/')
+        print $'archive: ---> ($archive)'
+        echo $"archive=($archive)(char nl)" o>> $env.GITHUB_OUTPUT
+    }
 
-    } else {
+    # Create extra Windows msi release package if dotnet and wix are available
+    let installed = [dotnet wix] | all { (which $in | length) > 0 }
+    if $installed and (wix --version | split row . | first | into int) >= 6 {
 
-        print $'(char nl)(ansi g)Archive contents:(ansi reset)'; hr-line; ls | print
-        let archive = $'($dist)/($releaseStem).zip'
-        7z a $archive ...(glob *)
-        let pkg = (ls -f $archive | get name)
-        if not ($pkg | is-empty) {
-            # Workaround for https://github.com/softprops/action-gh-release/issues/280
-            let archive = ($pkg | get 0 | str replace --all '\' '/')
-            print $'archive: ---> ($archive)'
-            echo $"archive=($archive)" | save --append $env.GITHUB_OUTPUT
-        }
+        print $'(char nl)Start creating Windows msi package with the following contents...'
+        cd $src; cd wix; hr-line; mkdir nu
+        # Wix need the binaries be stored in nu folder
+        cp -r ($'($dist)/*' | into glob) nu/
+        cp $'($dist)/README.txt' .
+        ls -f nu/* | print
+        let arch = if $nu.os-info.arch =~ 'x86_64' { 'x64' } else { 'arm64' }
+        ./nu/nu.exe -c $'NU_RELEASE_VERSION=($version) dotnet build -c Release -p:Platform=($arch)'
+        glob **/*.msi | print
+        # Workaround for https://github.com/softprops/action-gh-release/issues/280
+        let wixRelease = (glob **/*.msi | where $it =~ bin | get 0 | str replace --all '\' '/')
+        let msi = $'($wixRelease | path dirname)/nu-($version)-($target).msi'
+        mv $wixRelease $msi
+        print $'MSI archive: ---> ($msi)';
+        echo $"msi=($msi)(char nl)" o>> $env.GITHUB_OUTPUT
     }
 }
 
 def 'cargo-build-nu' [] {
-    if $os == 'windows-latest' {
+    if $os =~ 'windows' {
         cargo build --release --all --target $target
     } else {
         cargo build --release --all --target $target --features=static-link-openssl
