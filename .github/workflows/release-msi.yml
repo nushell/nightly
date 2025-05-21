@@ -65,7 +65,6 @@ jobs:
         OS: ${{ matrix.os }}
         REF: ${{ inputs.tag || 'v0.103.0' }}
         TARGET: ${{ matrix.target }}
-        _EXTRA_: ${{ matrix.extra }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     # REF: https://github.com/marketplace/actions/gh-release
