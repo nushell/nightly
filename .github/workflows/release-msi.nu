@@ -2,7 +2,7 @@
 
 # Created: 2025/05/21 19:05:20
 # Description:
-#   A script to build Windows MSI packages for NuShell. Need wix 6.0 to be intalled.
+#   A script to build Windows MSI packages for NuShell. Need wix 6.0 to be installed.
 #   The script will download the specified NuShell release, extract it, and create an MSI package.
 
 def build-msi [] {
