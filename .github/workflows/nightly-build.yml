@@ -99,16 +99,6 @@ jobs:
             # Disable the following two workflows for the automatic committed changes
             rm .github/workflows/ci.yml
             rm .github/workflows/audit.yml
-
-            # Test the latest release script before merging
-            # TODO: Remove the following two lines after the test
-            git fetch origin
-            if ((git branch -r) =~ fix/arm64-and-winget) {
-              git checkout scripts/build.rs
-              git checkout origin/fix/arm64-and-winget wix
-              git checkout origin/fix/arm64-and-winget .github/workflows/release-pkg.nu
-            }
-            # ----------- REMOVE END OF TESTING ------------------
             git add .
             git commit -m $'Update version to ($version)-nightly.($build)'
             git tag -a $nightly_tag -m $'Nightly build from ($sha_short)'
