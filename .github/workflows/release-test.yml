@@ -58,20 +58,29 @@ jobs:
 
         echo "Downloading LoongArch64 musl cross-compilation toolchain..."
         # Download and install LoongArch64 musl cross-compilation toolchain
-        wget -q https://github.com/LoongsonLab/oscomp-toolchains-for-oskernel/releases/download/loongarch64-cross-toolchains/loongarch64-linux-musl-cross.tgz
+        # Use the correct URL from LoongsonLab releases
+        wget -v https://github.com/LoongsonLab/oscomp-toolchains-for-oskernel/releases/download/loongarch64-linux-musl-cross-gcc-13.2.0/loongarch64-linux-musl-cross.tgz
 
         if [ ! -f "loongarch64-linux-musl-cross.tgz" ]; then
           echo "Failed to download toolchain"
+          ls -la
           exit 1
         fi
+
+        echo "File downloaded successfully:"
+        ls -la loongarch64-linux-musl-cross.tgz
 
         echo "Extracting toolchain..."
         tar -xf loongarch64-linux-musl-cross.tgz
 
         if [ ! -d "loongarch64-linux-musl-cross" ]; then
           echo "Failed to extract toolchain"
+          ls -la
           exit 1
         fi
+
+        echo "Extracted directory contents:"
+        ls -la loongarch64-linux-musl-cross/
 
         echo "Installing toolchain to /opt/"
         sudo mv loongarch64-linux-musl-cross /opt/
@@ -79,6 +88,8 @@ jobs:
         # Verify installation
         if [ ! -f "/opt/loongarch64-linux-musl-cross/bin/loongarch64-linux-musl-gcc" ]; then
           echo "Toolchain installation failed - gcc not found"
+          echo "Contents of /opt/loongarch64-linux-musl-cross/bin/:"
+          ls -la /opt/loongarch64-linux-musl-cross/bin/ || echo "Directory does not exist"
           exit 1
         fi
 
