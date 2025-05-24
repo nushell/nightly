@@ -54,7 +54,7 @@ jobs:
       run: |
         # Install necessary packages for LoongArch64 cross-compilation
         sudo apt-get update
-        sudo apt-get install -y qemu-user-static perl
+        sudo apt-get install -y qemu-user-static
 
     - name: Release Nu Binary
       id: nu
@@ -66,7 +66,7 @@ jobs:
           -w /workspace \
           loongarch64/alpine:3.21 \
           sh -c "\
-            apk add --no-cache curl gcc musl-dev openssl-dev openssl-libs-static && \
+            apk add --no-cache curl gcc musl-dev perl openssl-dev openssl-libs-static && \
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
             source ~/.cargo/env && \
             rustup target add loongarch64-unknown-linux-musl && \
