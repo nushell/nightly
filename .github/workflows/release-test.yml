@@ -7,7 +7,7 @@ name: Build Loongarch64 Musl Binary
 on:
   push:
     branches:
-    - release/loongarch-musl
+    - release/loong-musl-ndo
     tags:
     - 'v*'
 
@@ -27,7 +27,7 @@ jobs:
         extra: ['bin']
         include:
         - target: loongarch64-unknown-linux-musl
-          os: ubuntu-24.04-arm
+          os: ubuntu-24.04
 
     runs-on: ${{matrix.os}}
 
@@ -50,26 +50,38 @@ jobs:
       with:
         version: 0.103.0
 
-    - name: Setup Cross-compilation Environment
+    - name: Install LoongArch64 Cross-compilation Toolchain
       run: |
-        # Install necessary packages for LoongArch64 cross-compilation
+        # Install build dependencies
         sudo apt-get update
-        sudo apt-get install -y qemu-user-static
+        sudo apt-get install -y build-essential curl wget
+
+        # Download and install LoongArch64 musl cross-compilation toolchain
+        wget -q https://github.com/LoongsonLab/oscomp-toolchains-for-oskernel/releases/download/loongarch64-cross-toolchains/loongarch64-linux-musl-cross.tgz
+        tar -xf loongarch64-linux-musl-cross.tgz
+        sudo mv loongarch64-linux-musl-cross /opt/
+
+        # Add toolchain to PATH
+        echo "/opt/loongarch64-linux-musl-cross/bin" >> $GITHUB_PATH
+
+    - name: Configure Cross-compilation Environment
+      run: |
+        # Add LoongArch64 musl target to Rust
+        rustup target add loongarch64-unknown-linux-musl
+
+        # Set up environment variables for cross-compilation
+        echo "CARGO_TARGET_LOONGARCH64_UNKNOWN_LINUX_MUSL_LINKER=loongarch64-linux-musl-gcc" >> $GITHUB_ENV
+        echo "CC_loongarch64_unknown_linux_musl=loongarch64-linux-musl-gcc" >> $GITHUB_ENV
+        echo "CXX_loongarch64_unknown_linux_musl=loongarch64-linux-musl-g++" >> $GITHUB_ENV
+        echo "AR_loongarch64_unknown_linux_musl=loongarch64-linux-musl-ar" >> $GITHUB_ENV
+        echo "CARGO_TARGET_LOONGARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS=-C linker=loongarch64-linux-musl-gcc" >> $GITHUB_ENV
 
     - name: Release Nu Binary
       id: nu
       run: |
-        # Use official Alpine image from Docker Hub for cross-compilation
-        docker run --rm \
-          --platform linux/loong64 \
-          -v "$(pwd)":/workspace \
-          -w /workspace \
-          loongarch64/alpine:3.21 \
-          sh -c "\
-            apk add --no-cache curl make gcc musl-dev perl openssl-dev openssl-libs-static && \
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
-            source ~/.cargo/env && \
-            rustup target add loongarch64-unknown-linux-musl && \
-            RUSTFLAGS='-C target-feature=+crt-static' cargo build --release --target loongarch64-unknown-linux-musl --features=static-link-openssl\
-          "
+        # Verify cross-compiler is available
+        loongarch64-linux-musl-gcc --version
 
+        # Build nushell with cross-compilation
+        cargo build --release --target loongarch64-unknown-linux-musl --features=static-link-openssl
+        target/loongarch64-unknown-linux-musl/release/nu --version
