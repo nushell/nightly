@@ -82,9 +82,6 @@ fn main() -> Result<()> {
     // TODO: make this conditional in the future
     ctrlc_protection(&mut engine_state);
 
-    #[cfg(feature = "rustls-tls")]
-    nu_command::tls::CRYPTO_PROVIDER.default();
-
     // Begin: Default NU_LIB_DIRS, NU_PLUGIN_DIRS
     // Set default NU_LIB_DIRS and NU_PLUGIN_DIRS here before the env.nu is processed. If
     // the env.nu file exists, these values will be overwritten, if it does not exist, or

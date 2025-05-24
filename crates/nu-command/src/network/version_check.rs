@@ -6,8 +6,6 @@ use update_informer::{
     registry,
 };
 
-use super::tls::tls;
-
 #[derive(Clone)]
 pub struct VersionCheck;
 
@@ -94,7 +92,7 @@ impl HttpClient for NativeTlsHttpClient {
         headers: update_informer::http_client::HeaderMap,
     ) -> update_informer::Result<T> {
         let agent = ureq::AgentBuilder::new()
-            .tls_connector(std::sync::Arc::new(tls(false)?))
+            .tls_connector(std::sync::Arc::new(native_tls::TlsConnector::new()?))
             .build();
 
         let mut req = agent.get(url).timeout(timeout);
