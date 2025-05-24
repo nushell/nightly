@@ -139,7 +139,7 @@ jobs:
 
         echo "Starting build..."
         # Build nushell with cross-compilation
-        cargo build --release --target loongarch64-unknown-linux-musl --features=static-link-openssl
+        cargo build --release --all --target loongarch64-unknown-linux-musl --features=static-link-openssl
 
         echo "Build completed, checking output files..."
         if [ -d "target/loongarch64-unknown-linux-musl/release" ]; then
