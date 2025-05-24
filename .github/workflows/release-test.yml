@@ -62,22 +62,17 @@ jobs:
         # Use Alpine LoongArch64 image for cross-compilation
         docker run --rm --privileged loongcr.lcpu.dev/multiarch/archlinux --reset -p yes
 
-        # Use Alpine LoongArch64 with Rust environment
+        # Use official Alpine image from Docker Hub for cross-compilation
         docker run --rm \
           --platform linux/loong64 \
           -v "$(pwd)":/workspace \
           -w /workspace \
-          loongcr.lcpu.dev/lcpu/alpine:latest \
-          sh -c "
-            # Install Rust and necessary dependencies
-            apk add --no-cache curl gcc musl-dev openssl-dev openssl-libs-static
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
-            source ~/.cargo/env
-
-            # Add the LoongArch64 musl target
-            rustup target add loongarch64-unknown-linux-musl
-
-            # Build with static linking
-            RUSTFLAGS='-C target-feature=+crt-static' cargo build --release --target loongarch64-unknown-linux-musl --features=static-link-openssl
+          loongarch64/alpine:3.21 \
+          sh -c "\
+            apk add --no-cache curl gcc musl-dev openssl-dev openssl-libs-static && \
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
+            source ~/.cargo/env && \
+            rustup target add loongarch64-unknown-linux-musl && \
+            RUSTFLAGS='-C target-feature=+crt-static' cargo build --release --target loongarch64-unknown-linux-musl --features=static-link-openssl\
           "
 
