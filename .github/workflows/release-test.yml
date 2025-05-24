@@ -27,7 +27,7 @@ jobs:
         extra: ['bin']
         include:
         - target: loongarch64-unknown-linux-musl
-          os: ubuntu-22.04
+          os: ubuntu-24.04-arm
 
     runs-on: ${{matrix.os}}
 
@@ -59,9 +59,6 @@ jobs:
     - name: Release Nu Binary
       id: nu
       run: |
-        # Use Alpine LoongArch64 image for cross-compilation
-        docker run --rm --privileged loongcr.lcpu.dev/multiarch/archlinux --reset -p yes
-
         # Use official Alpine image from Docker Hub for cross-compilation
         docker run --rm \
           --platform linux/loong64 \
