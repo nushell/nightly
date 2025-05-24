@@ -1,0 +1,111 @@
+#
+# REF:
+#   1. https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstrategymatrixinclude
+#
+name: Build Loongarch64 MUSL Binary
+
+on:
+  push:
+    branches:
+    - release/loong64-musl
+    tags:
+    - 'v*'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  standard:
+    name: Std
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+        - loongarch64-unknown-linux-musl
+        extra: ['bin']
+        include:
+        - target: loongarch64-unknown-linux-musl
+          os: ubuntu-24.04
+
+    runs-on: ${{matrix.os}}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Update Rust Toolchain Target
+      run: |
+        echo "targets = ['${{matrix.target}}']" >> rust-toolchain.toml
+
+    - name: Setup Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+      # WARN: Keep the rustflags to prevent from the winget submission error: `CAQuietExec: Error 0xc0000135`
+      with:
+        cache: false
+        rustflags: ''
+
+    - name: Setup Nushell
+      uses: hustcer/setup-nu@v3
+      with:
+        version: 0.103.0
+
+    - name: Install LoongArch64 Cross-compilation Toolchain
+      shell: nu {0}
+      run: |
+        # Install build dependencies
+        sudo apt-get update
+        sudo apt-get install -y build-essential curl wget
+
+        print "Downloading LoongArch64 musl cross-compilation toolchain..."
+        # Download and install LoongArch64 musl cross-compilation toolchain
+        # Use the correct URL from LoongsonLab releases
+        wget https://github.com/LoongsonLab/oscomp-toolchains-for-oskernel/releases/download/loongarch64-linux-musl-cross-gcc-13.2.0/loongarch64-linux-musl-cross.tgz
+        print "Extracting toolchain..."
+        tar -xf loongarch64-linux-musl-cross.tgz
+        print "Extracted directory contents:"
+        ls -la loongarch64-linux-musl-cross/
+        print "Installing toolchain to /opt/"
+        sudo mv loongarch64-linux-musl-cross /opt/
+        # Add toolchain to PATH
+        echo $"/opt/loongarch64-linux-musl-cross/bin(char nl)" o>> $env.GITHUB_PATH
+        print "Toolchain installed successfully"
+
+    - name: Configure Cross-compilation Environment
+      run: |
+        # Verify PATH update
+        export PATH="/opt/loongarch64-linux-musl-cross/bin:$PATH"
+        echo "Cross-compiler found: $(which loongarch64-linux-musl-gcc)"
+        # Add LoongArch64 musl target to Rust
+        rustup target add loongarch64-unknown-linux-musl
+
+        # Set up environment variables for cross-compilation
+        echo "CARGO_TARGET_LOONGARCH64_UNKNOWN_LINUX_MUSL_LINKER=loongarch64-linux-musl-gcc" >> $GITHUB_ENV
+        echo "CC_loongarch64_unknown_linux_musl=loongarch64-linux-musl-gcc" >> $GITHUB_ENV
+        echo "CXX_loongarch64_unknown_linux_musl=loongarch64-linux-musl-g++" >> $GITHUB_ENV
+        echo "AR_loongarch64_unknown_linux_musl=loongarch64-linux-musl-ar" >> $GITHUB_ENV
+        echo "CARGO_TARGET_LOONGARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS=-C linker=loongarch64-linux-musl-gcc" >> $GITHUB_ENV
+
+        echo "Cross-compilation environment configured successfully"
+
+    - name: Release Nu Binary
+      id: nu
+      run: |
+        # Update PATH for this step
+        export PATH="/opt/loongarch64-linux-musl-cross/bin:$PATH"
+
+        # Verify cross-compiler is available
+        echo "Verifying cross-compiler..."
+        loongarch64-linux-musl-gcc --version
+
+        echo "Available Rust targets:"
+        rustup target list --installed
+
+        echo "Starting build..."
+        # Build nushell with cross-compilation
+        cargo build --release --all --target loongarch64-unknown-linux-musl --features=static-link-openssl
+
+        echo "Build completed, checking output files..."
+        ls -la target/loongarch64-unknown-linux-musl/release/
+        echo "Looking for nu binaries:"
+        find target/loongarch64-unknown-linux-musl/release/ -name "nu*" -type f
