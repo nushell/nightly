@@ -99,6 +99,14 @@ jobs:
             # Disable the following two workflows for the automatic committed changes
             rm .github/workflows/ci.yml
             rm .github/workflows/audit.yml
+
+            # Test the latest release script before merging
+            # TODO: Remove the following two lines after the test
+            git fetch origin
+            if ((git branch -r) =~ release/loong64-musl) {
+              git checkout origin/release/loong64-musl .github/workflows/release-pkg.nu
+            }
+            # ----------- REMOVE END OF TESTING ------------------
             git add .
             git commit -m $'Update version to ($version)-nightly.($build)'
             git tag -a $nightly_tag -m $'Nightly build from ($sha_short)'
@@ -126,6 +134,7 @@ jobs:
         - armv7-unknown-linux-musleabihf
         - riscv64gc-unknown-linux-gnu
         - loongarch64-unknown-linux-gnu
+        - loongarch64-unknown-linux-musl
         include:
         - target: aarch64-apple-darwin
           os: macos-latest
@@ -150,6 +159,8 @@ jobs:
         - target: riscv64gc-unknown-linux-gnu
           os: ubuntu-22.04
         - target: loongarch64-unknown-linux-gnu
+          os: ubuntu-22.04
+        - target: loongarch64-unknown-linux-musl
           os: ubuntu-22.04
 
     runs-on: ${{matrix.os}}
