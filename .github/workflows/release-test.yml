@@ -53,10 +53,6 @@ jobs:
     - name: Install LoongArch64 Cross-compilation Toolchain
       shell: nu {0}
       run: |
-        # Install build dependencies
-        sudo apt-get update
-        sudo apt-get install -y build-essential curl wget
-
         print $"(ansi g)Downloading LoongArch64 musl cross-compilation toolchain...(ansi reset)"
         # Download and install LoongArch64 musl cross-compilation toolchain
         aria2c -q https://github.com/LoongsonLab/oscomp-toolchains-for-oskernel/releases/download/loongarch64-linux-musl-cross-gcc-13.2.0/loongarch64-linux-musl-cross.tgz
@@ -65,7 +61,7 @@ jobs:
         print $"(ansi g)Extracted directory contents:(ansi reset)"
         ls -la loongarch64-linux-musl-cross/ | print
         print "Installing toolchain to /opt/"
-        sudo mv loongarch64-linux-musl-cross /opt/
+        mv loongarch64-linux-musl-cross /opt/
         # Add toolchain to PATH
         echo $"/opt/loongarch64-linux-musl-cross/bin(char nl)" o>> $env.GITHUB_PATH
         print $"(ansi g)Toolchain installed successfully(ansi reset)"
