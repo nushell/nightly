@@ -11,6 +11,10 @@ on:
         required: true
         description: 'Tag to Rebuild MSI'
 
+permissions:
+  contents: write
+  packages: write
+
 defaults:
   run:
     shell: bash
