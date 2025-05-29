@@ -103,8 +103,8 @@ jobs:
             # Test the latest release script before merging
             # TODO: Remove the following two lines after the test
             git fetch origin
-            if ((git branch -r) =~ release/loong64-musl) {
-              git checkout origin/release/loong64-musl .github/workflows/release-pkg.nu
+            if ((git branch -r) =~ feature/loong64-musl) {
+              git checkout origin/feature/loong64-musl .github/workflows/release-pkg.nu
             }
             # ----------- REMOVE END OF TESTING ------------------
             git add .
