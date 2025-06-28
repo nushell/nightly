@@ -100,6 +100,12 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
             $env.CC_riscv64gc_unknown_linux_musl = 'riscv64-linux-musl-gcc'
             $env.AR_riscv64gc_unknown_linux_musl = 'riscv64-linux-musl-ar'
             $env.RANLIB_riscv64gc_unknown_linux_musl = 'riscv64-linux-musl-ranlib'
+            # Disable parallel compilation for OpenSSL to avoid build issues
+            $env.MAKEFLAGS = ''
+            # Reduce optimization to avoid potential compiler issues
+            $env.CFLAGS_riscv64gc_unknown_linux_musl = '-O1'
+            # Set target-specific environment variables for OpenSSL
+            $env.RISCV64GC_UNKNOWN_LINUX_MUSL_OPENSSL_NO_VENDOR = '1'
             cargo-build-nu
         }
         'loongarch64-unknown-linux-gnu' => {
