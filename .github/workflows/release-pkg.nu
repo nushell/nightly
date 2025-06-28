@@ -93,7 +93,7 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
             cargo-build-nu
         }
         'riscv64gc-unknown-linux-musl' => {
-            aria2c https://musl.cc/riscv64-linux-musl-cross.tgz
+            aria2c https://github.com/nushell/integrations/releases/download/build-tools/riscv64-linux-musl-cross.tgz
             tar -xf riscv64-linux-musl-cross.tgz -C $env.HOME
             $env.PATH = ($env.PATH | split row (char esep) | prepend $'($env.HOME)/riscv64-linux-musl-cross/bin')
             $env.CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_LINKER = 'riscv64-linux-musl-gcc'
