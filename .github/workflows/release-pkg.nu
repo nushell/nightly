@@ -93,12 +93,14 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
             cargo-build-nu
         }
         'riscv64gc-unknown-linux-musl' => {
-            sudo apt-get install libssl-dev -y
             aria2c https://github.com/nushell/integrations/releases/download/build-tools/riscv64-linux-musl-cross.tgz
             tar -xf riscv64-linux-musl-cross.tgz -C $env.HOME
             $env.PATH = ($env.PATH | split row (char esep) | prepend $'($env.HOME)/riscv64-linux-musl-cross/bin')
             $env.CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_LINKER = 'riscv64-linux-musl-gcc'
-            cargo build --release --all --target $target
+            $env.CC_riscv64gc_unknown_linux_musl = 'riscv64-linux-musl-gcc'
+            $env.AR_riscv64gc_unknown_linux_musl = 'riscv64-linux-musl-ar'
+            $env.RANLIB_riscv64gc_unknown_linux_musl = 'riscv64-linux-musl-ranlib'
+            cargo-build-nu
         }
         'loongarch64-unknown-linux-gnu' => {
             aria2c https://github.com/loongson/build-tools/releases/download/2024.08.08/x86_64-cross-tools-loongarch64-binutils_2.43-gcc_14.2.0-glibc_2.40.tar.xz
