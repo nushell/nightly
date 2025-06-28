@@ -93,6 +93,7 @@ if $os in ['macos-latest'] or $USE_UBUNTU {
             cargo-build-nu
         }
         'riscv64gc-unknown-linux-musl' => {
+            sudo apt-get install libssl-dev -y
             aria2c https://github.com/nushell/integrations/releases/download/build-tools/riscv64-linux-musl-cross.tgz
             tar -xf riscv64-linux-musl-cross.tgz -C $env.HOME
             $env.PATH = ($env.PATH | split row (char esep) | prepend $'($env.HOME)/riscv64-linux-musl-cross/bin')
