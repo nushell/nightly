@@ -371,6 +371,31 @@ impl EngineState {
         Ok(())
     }
 
+    /// Clean up unused variables from a Stack to prevent memory leaks.
+    /// This removes variables that are no longer referenced by any overlay.
+    pub fn cleanup_stack_variables(&self, stack: &mut Stack) {
+        use std::collections::HashSet;
+
+        // Collect all VarIds that are still referenced by overlays
+        let mut referenced_vars = HashSet::new();
+
+        for overlay_frame in self.scope.overlays.iter() {
+            for var_id in overlay_frame.1.vars.values() {
+                referenced_vars.insert(*var_id);
+            }
+        }
+
+        // Always preserve critical system variables
+        referenced_vars.insert(NU_VARIABLE_ID);
+        referenced_vars.insert(IN_VARIABLE_ID);
+        referenced_vars.insert(ENV_VARIABLE_ID);
+
+        // Remove variables from stack that are no longer referenced
+        stack
+            .vars
+            .retain(|(var_id, _)| referenced_vars.contains(var_id));
+    }
+
     pub fn active_overlay_ids<'a, 'b>(
         &'b self,
         removed_overlays: &'a [Vec<u8>],
