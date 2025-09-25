@@ -107,7 +107,7 @@ jobs:
             # TODO: Remove the following a few lines after the test
             git fetch origin
             if ((git branch -r) =~ feature/latest) {
-              let assets = [wix/main.wxs]
+              let assets = [.github/workflows/release-pkg.nu]
               print $'Checking out the latest changes from (ansi g)feature/latest(ansi reset):'
               print $assets
               git checkout origin/feature/latest ...$assets
