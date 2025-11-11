@@ -227,7 +227,7 @@ def fetch-less [
     let less_zip = $'less-($arch).zip'
     print $'Fetching less archive: (ansi g)($less_zip)(ansi reset)'
     let url = $'https://github.com/jftuga/less-Windows/releases/download/less-v668/($less_zip)'
-    http get https://github.com/jftuga/less-Windows/raw/master/LICENSE | save -rf LICENSE-for-less.txt
+    http get https://github.com/jftuga/less-Windows/blob/master/LICENSE | save -rf LICENSE-for-less.txt
     http get $url | save -rf $less_zip
     unzip $less_zip
     rm $less_zip lesskey.exe
@@ -235,9 +235,9 @@ def fetch-less [
 
 def 'cargo-build-nu' [] {
     if $os =~ 'windows' {
-        cargo build --release --all --target $target
+        cargo build --release --all --target $target --features=mcp
     } else {
-        cargo build --release --all --target $target --features=static-link-openssl
+        cargo build --release --all --target $target --features=static-link-openssl,mcp
     }
 }
 
