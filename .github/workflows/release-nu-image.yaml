@@ -22,7 +22,7 @@ jobs:
         base: [debian, alpine]
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 0
@@ -149,7 +149,7 @@ jobs:
     needs: build-and-push-Nu
     steps:
       - name: Delete all containers from repository without tags
-        uses: Chizkiyahu/delete-untagged-ghcr-action@v4
+        uses: Chizkiyahu/delete-untagged-ghcr-action@v6
         with:
           owner_type: user
           untagged_only: true

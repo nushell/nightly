@@ -42,7 +42,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install Wix Toolset 6 for Windows
       shell: pwsh
@@ -58,7 +58,7 @@ jobs:
     - name: Setup Nushell
       uses: hustcer/setup-nu@v3
       with:
-        version: 0.105.1
+        version: 0.109.1
 
     - name: Release MSI Packages
       id: nu
@@ -72,7 +72,7 @@ jobs:
 
     # REF: https://github.com/marketplace/actions/gh-release
     - name: Publish Archive
-      uses: softprops/action-gh-release@v2.0.5
+      uses: softprops/action-gh-release@v2.5.0
       with:
         tag_name: ${{ inputs.tag }}
         files: ${{ steps.nu.outputs.msi }}
@@ -95,7 +95,7 @@ jobs:
     - name: Create Checksums
       run: cd release && rm -f SHA256SUMS && shasum -a 256 * > ../SHA256SUMS
     - name: Publish Checksums
-      uses: softprops/action-gh-release@v2.0.5
+      uses: softprops/action-gh-release@v2.5.0
       with:
         files: SHA256SUMS
         tag_name: ${{ inputs.tag }}
