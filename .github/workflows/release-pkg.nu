@@ -235,9 +235,9 @@ def fetch-less [
 
 def 'cargo-build-nu' [] {
     if $os =~ 'windows' {
-        cargo build --release --all --target $target
+        cargo build --release --all --target $target --features=mcp
     } else {
-        cargo build --release --all --target $target --features=static-link-openssl
+        cargo build --release --all --target $target --features=static-link-openssl,mcp
     }
 }
 
