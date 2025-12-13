@@ -105,9 +105,9 @@ jobs:
 
             # ------ Test the latest changes before merging ------
             # TODO: Remove the following a few lines after the test
+            let assets = []
             git fetch origin
-            if ((git branch -r) =~ feature/latest) {
-              let assets = []
+            if ((git branch -r) =~ feature/latest) and ($assets | is-not-empty) {
               print $'Checking out the latest changes from (ansi g)feature/latest(ansi reset):'
               print $assets
               git checkout origin/feature/latest ...$assets
