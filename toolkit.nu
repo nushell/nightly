@@ -18,14 +18,15 @@ export def get-latest-nightly-build [
       | sort-by published_at --reverse
       | first
 
-  let assets = $latest.assets
+  let assets = $latest.assets | filter {not ($in.name | str ends-with ".msi")}
+
+  let archs = $assets
       | get name
-      | where not ($it | str ends-with ".msi")
       | parse --regex 'nu-\d\.\d+\.\d-(?<arch>[a-zA-Z0-9-_]*)\..*'
       | get arch
 
   let arch = if $interactive {
-    match ($assets | length) {
+    match ($archs | length) {
       0 => {
         error make --unspanned {
           msg: (
@@ -34,9 +35,9 @@ export def get-latest-nightly-build [
           )
         }
       },
-      1 => { $assets.0 },
+      1 => { $archs.0 },
       _ => {
-        let choice = $assets | input list --fuzzy $"Please (ansi cyan)choose one architecture(ansi reset):"
+        let choice = $archs | input list --fuzzy $"Please (ansi cyan)choose one architecture(ansi reset):"
         if ($choice | is-empty) {
           print "user chose to exit"
           return
@@ -98,7 +99,7 @@ export def get-latest-nightly-build [
     }
   }
 
-  let target = $latest.assets | where name =~ $arch
+  let target = $assets | where name =~ $arch
   if ($target | length) != 1 {
     error make --unspanned {
       msg: (
@@ -125,8 +126,17 @@ export def get-latest-nightly-build [
       ^tar xvf $dump_dir --directory $nu.temp-path
     },
     "zip" => {
-      log info "extracting nushell..."
-      ^unzip $dump_dir -d $nu.temp-path
+      let temp_dir = $dump_dir | str substring 0..-5
+      mkdir $temp_dir
+      if $nu.os-info.name == "windows" {
+        # Windows 10(above build 17063) have bsdtar.
+        # bsdtar can extract zip format.
+        log info "extracting nushell..."
+        ^tar xvf $dump_dir --directory $temp_dir
+      } else { 
+        log info "extracting nushell..."
+        ^unzip $dump_dir -d $temp_dir
+      }
     },
     _ => {
       error make --unspanned {
@@ -139,7 +149,7 @@ export def get-latest-nightly-build [
     },
   }
 
-  let binary = $dump_dir | str replace --regex $'\.($build.extension)$' '' | path join "nu"
+  let binary = $dump_dir | str replace --regex $'\.($build.extension)$' '' | path join (if $nu.os-info.name == "windows" { "nu.exe" } else { "nu" })
   log info "installing `nu`..."
   cp --force --verbose $binary ($install_dir | path expand)
 }
