@@ -8,11 +8,12 @@ use std::{
 };
 
 use nu_protocol::{
-    CompileError, Config, FromValue, IntoValue, ParseError, PipelineData, PipelineExecutionData,
-    ShellError, Span, Value,
+    CompileError, Config, FromValue, IntoValue, LabeledError, ParseError, PipelineData,
+    PipelineExecutionData, ShellError, Span, Value,
     ast::Block,
     debugger::WithoutDebug,
     engine::{Command, EngineState, Stack, StateDelta, StateWorkingSet},
+    shell_error::{io::IoError, network::NetworkError},
 };
 use nu_utils::{consts::ENV_PATH_SEPARATOR_CHAR, sync::KeyedLazyLock};
 
@@ -116,7 +117,7 @@ impl Default for NuTester {
     fn default() -> Self {
         Self {
             engine_state: INITIAL_ENGINE_STATES.get(&GroupKey::current()).clone(),
-            stack: Stack::new(),
+            stack: Stack::new().collect_value(),
         }
     }
 }
@@ -341,7 +342,8 @@ pub enum TestErrorKind {
         got: Value,
     },
     NoInner,
-    NotGeneric {
+    UnexpectedErrorKind {
+        expected: &'static str,
         got: ShellError,
     },
     UnexpectedValue {
@@ -370,6 +372,16 @@ impl From<ShellError> for TestError {
         Self {
             location: TestLocation(Location::caller()),
             kind: TestErrorKind::Shell(err),
+        }
+    }
+}
+
+impl From<ParseError> for TestError {
+    #[track_caller]
+    fn from(err: ParseError) -> Self {
+        Self {
+            location: TestLocation(Location::caller()),
+            kind: TestErrorKind::Parse(err),
         }
     }
 }
@@ -423,6 +435,13 @@ pub trait TestResultExt: Sized {
     fn expect_parse_error(self) -> Result<ParseError>;
     /// Expect the result to be a [`CompileError`].
     fn expect_compile_error(self) -> Result<CompileError>;
+
+    /// Expect the result to be a [`ShellError::Io`].
+    fn expect_io_error(self) -> Result<IoError>;
+    /// Expect the result to be a [`ShellError::Network`].
+    fn expect_network_error(self) -> Result<NetworkError>;
+    /// Expect the result to be a [`ShellError::LabeledError`].
+    fn expect_labeled_error(self) -> Result<LabeledError>;
 
     /// Expect the result to be a [`ShellError`].
     #[track_caller]
@@ -492,6 +511,51 @@ impl TestResultExt for Result<Value> {
             Err(err) => Err(err.update_location()),
         }
     }
+
+    #[track_caller]
+    fn expect_io_error(self) -> Result<IoError> {
+        match self {
+            Ok(got) => Err(TestError {
+                location: TestLocation(Location::caller()),
+                kind: TestErrorKind::GotValue { got },
+            }),
+            Err(TestError {
+                kind: TestErrorKind::Shell(ShellError::Io(err)),
+                ..
+            }) => Ok(err),
+            Err(err) => Err(err.update_location()),
+        }
+    }
+
+    #[track_caller]
+    fn expect_network_error(self) -> Result<NetworkError> {
+        match self {
+            Ok(got) => Err(TestError {
+                location: TestLocation(Location::caller()),
+                kind: TestErrorKind::GotValue { got },
+            }),
+            Err(TestError {
+                kind: TestErrorKind::Shell(ShellError::Network(err)),
+                ..
+            }) => Ok(err),
+            Err(err) => Err(err.update_location()),
+        }
+    }
+
+    #[track_caller]
+    fn expect_labeled_error(self) -> Result<LabeledError> {
+        match self {
+            Ok(got) => Err(TestError {
+                location: TestLocation(Location::caller()),
+                kind: TestErrorKind::GotValue { got },
+            }),
+            Err(TestError {
+                kind: TestErrorKind::Shell(ShellError::LabeledError(err)),
+                ..
+            }) => Ok(*err),
+            Err(err) => Err(err.update_location()),
+        }
+    }
 }
 
 /// Extensions for interrogating [`ShellError`] values in tests.
@@ -508,6 +572,9 @@ pub trait ShellErrorExt {
     ///
     /// So make sure that a [`None`] value is not surprise.
     fn into_inner(self) -> Result<ShellError>;
+
+    /// Extract the [`LabeledError`] from [`ShellError::LabeledError`], if it is one.
+    fn into_labeled(self) -> Result<LabeledError>;
 
     /// Extract the error field from [`ShellError::GenericError`], if it is one.
     fn generic_error(self) -> Result<String>;
@@ -531,12 +598,29 @@ impl ShellErrorExt for ShellError {
     }
 
     #[track_caller]
+    fn into_labeled(self) -> Result<LabeledError> {
+        match self {
+            ShellError::LabeledError(err) => Ok(*err),
+            got => Err(TestError {
+                location: TestLocation(Location::caller()),
+                kind: TestErrorKind::UnexpectedErrorKind {
+                    expected: "Labeled",
+                    got,
+                },
+            }),
+        }
+    }
+
+    #[track_caller]
     fn generic_error(self) -> Result<String> {
         match self {
             ShellError::GenericError { error, .. } => Ok(error),
             got => Err(TestError {
                 location: TestLocation(Location::caller()),
-                kind: TestErrorKind::NotGeneric { got },
+                kind: TestErrorKind::UnexpectedErrorKind {
+                    expected: "Generic",
+                    got,
+                },
             }),
         }
     }
@@ -547,7 +631,10 @@ impl ShellErrorExt for ShellError {
             ShellError::GenericError { msg, .. } => Ok(msg),
             got => Err(TestError {
                 location: TestLocation(Location::caller()),
-                kind: TestErrorKind::NotGeneric { got },
+                kind: TestErrorKind::UnexpectedErrorKind {
+                    expected: "Generic",
+                    got,
+                },
             }),
         }
     }
