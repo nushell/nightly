@@ -97,12 +97,12 @@ impl Command for PathSelf {
         vec![
             Example {
                 description: "Get the path of the current file.",
-                example: r#"const current_file = path self"#,
+                example: "const current_file = path self",
                 result: None,
             },
             Example {
                 description: "Get the path of the directory containing the current file.",
-                example: r#"const current_file = path self ."#,
+                example: "const current_file = path self .",
                 result: None,
             },
             #[cfg(windows)]
@@ -114,7 +114,7 @@ impl Command for PathSelf {
             #[cfg(not(windows))]
             Example {
                 description: "Get the absolute form of a path relative to the current file.",
-                example: r#"const current_file = path self ../foo"#,
+                example: "const current_file = path self ../foo",
                 result: None,
             },
         ]
