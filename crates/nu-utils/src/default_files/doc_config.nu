@@ -163,6 +163,31 @@ $env.config.cursor_shape.vi_normal = "inherit"
 # Default: true
 $env.config.show_hints = true
 
+# hinter.closure (closure|null): Custom hint closure.
+# Closure input: one record argument {|ctx| ... } where
+#   $ctx.line (string): current line buffer
+#   $ctx.pos (int): current cursor position
+#   $ctx.cwd (string): current working directory
+# Return:
+#   string -> hint suffix to render and accept
+#   record -> {hint: string, next_token?: string} for custom token splitting
+#   null   -> no hint (equivalent to "")
+# Any closure error or unsupported return type yields no hint.
+# To use the built-in hinter instead, set hinter.closure = null in config.
+# This closure runs frequently while typing, so keep it lightweight.
+# Default: null
+$env.config.hinter.closure = null
+
+# Example:
+# $env.config.hinter.closure = {|ctx|
+#   let last = (history | last 1 | get command_line? | get 0?)
+#   if $last == null or not ($last | str starts-with $ctx.line) {
+#     null
+#   } else {
+#     ($last | str substring ($ctx.line | str length)..)
+#   }
+# }
+
 # completions.algorithm (string): The algorithm used for matching completions.
 # "prefix": Match from the beginning of the text.
 # "substring": Match anywhere in the text.
