@@ -1,6 +1,9 @@
 use nu_engine::command_prelude::*;
 use nu_protocol::{ListStream, Signals};
-use wax::{Glob as WaxGlob, WalkBehavior, WalkEntry};
+use wax::{
+    Glob as WaxGlob, any, walk::DepthBehavior, walk::DepthMax, walk::Entry, walk::FileIterator,
+    walk::GlobEntry, walk::LinkBehavior, walk::WalkBehavior,
+};
 
 #[derive(Clone)]
 pub struct Glob;
@@ -195,7 +198,7 @@ impl Command for Glob {
         };
 
         let (prefix, glob) = match WaxGlob::new(&glob_pattern) {
-            Ok(p) => p.partition(),
+            Ok(p) => p.partition_or_empty(),
             Err(e) => {
                 return Err(ShellError::GenericError {
                     error: "error with glob pattern".into(),
@@ -234,22 +237,42 @@ impl Command for Glob {
         };
 
         let link_behavior = match follow_symlinks {
-            true => wax::LinkBehavior::ReadTarget,
-            false => wax::LinkBehavior::ReadFile,
+            true => LinkBehavior::ReadTarget,
+            false => LinkBehavior::ReadFile,
+        };
+
+        let make_walk_behavior = |depth: usize| WalkBehavior {
+            depth: DepthBehavior::Max(DepthMax(depth)),
+            link: link_behavior,
         };
 
         let result = if !not_patterns.is_empty() {
-            let np: Vec<&str> = not_patterns.iter().map(|s| s as &str).collect();
+            let patterns: Vec<WaxGlob<'static>> = not_patterns
+                .into_iter()
+                .map(|pattern| {
+                    WaxGlob::new(&pattern)
+                        .map_err(|err| ShellError::GenericError {
+                            error: "error with glob's not pattern".into(),
+                            msg: format!("{err}"),
+                            span: Some(not_pattern_span),
+                            help: None,
+                            inner: vec![],
+                        })
+                        .map(|g| g.into_owned())
+                })
+                .collect::<Result<_, _>>()?;
+
+            let any_pattern = any(patterns).map_err(|err| ShellError::GenericError {
+                error: "error with glob's not pattern".into(),
+                msg: format!("{err}"),
+                span: Some(not_pattern_span),
+                help: None,
+                inner: vec![],
+            })?;
+
             let glob_results = glob
-                .walk_with_behavior(
-                    path,
-                    WalkBehavior {
-                        depth: folder_depth,
-                        link: link_behavior,
-                    },
-                )
-                .into_owned()
-                .not(np)
+                .walk_with_behavior(path, make_walk_behavior(folder_depth))
+                .not(any_pattern)
                 .map_err(|err| ShellError::GenericError {
                     error: "error with glob's not pattern".into(),
                     msg: format!("{err}"),
@@ -258,6 +281,7 @@ impl Command for Glob {
                     inner: vec![],
                 })?
                 .flatten();
+
             glob_to_value(
                 engine_state.signals(),
                 glob_results,
@@ -268,14 +292,7 @@ impl Command for Glob {
             )
         } else {
             let glob_results = glob
-                .walk_with_behavior(
-                    path,
-                    WalkBehavior {
-                        depth: folder_depth,
-                        link: link_behavior,
-                    },
-                )
-                .into_owned()
+                .walk_with_behavior(path, make_walk_behavior(folder_depth))
                 .flatten();
             glob_to_value(
                 engine_state.signals(),
@@ -328,7 +345,7 @@ fn convert_patterns(columns: &[Value]) -> Result<Vec<String>, ShellError> {
 
 fn glob_to_value(
     signals: &Signals,
-    glob_results: impl Iterator<Item = WalkEntry<'static>> + Send + 'static,
+    glob_results: impl Iterator<Item = GlobEntry> + Send + 'static,
     no_dirs: bool,
     no_files: bool,
     no_symlinks: bool,
@@ -346,7 +363,7 @@ fn glob_to_value(
             || no_symlinks && file_type.is_symlink())
         {
             Some(Value::string(
-                entry.into_path().to_string_lossy().to_string(),
+                entry.into_path().to_string_lossy().into_owned(),
                 span,
             ))
         } else {
