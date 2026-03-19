@@ -90,3 +90,25 @@ fn optional_cell_path_works() {
     let expected = r#"{"123": [[foo]; [123]], "234": [[foo]; [234]]}"#;
     assert_eq!(actual.out, expected)
 }
+
+#[test]
+fn group_by_compound_values_are_grouped_distinctly() {
+    // Regression test for grouping by list values.
+    let actual = nu!("
+        let data = [[k v]; [a [2 1]] [b [1 2]] [c [3]] [d [2]]];
+        $data | group-by v | columns | length
+    ");
+    assert_eq!(actual.out, "4");
+
+    // Every distinct list value should produce a separate group with exactly 1 row.
+    let actual = nu!("
+        let data = [[k v]; [a [2 1]] [b [1 2]] [c [3]] [d [2]]];
+        $data
+        | group-by v
+        | values
+        | each { |items| $items | length }
+        | uniq
+        | first
+    ");
+    assert_eq!(actual.out, "1");
+}

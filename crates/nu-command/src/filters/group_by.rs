@@ -372,7 +372,7 @@ fn group_cell_path(
             continue; // likely the result of a failed optional access, ignore this value
         }
 
-        let key = key.to_abbreviated_string(config);
+        let key = key.to_expanded_string(", ", config);
 
         if prune {
             // it's okay if this fails since pruning is best-effort
@@ -410,7 +410,7 @@ fn group_closure(
         let key = closure
             .run_with_value(value.clone())?
             .into_value(span)?
-            .to_abbreviated_string(config);
+            .to_expanded_string(", ", config);
 
         groups.entry(key).or_default().push(value);
     }
@@ -450,7 +450,7 @@ impl Grouped {
         let mut groups = IndexMap::<_, Vec<_>>::new();
 
         for value in values.into_iter() {
-            let key = value.to_abbreviated_string(config);
+            let key = value.to_expanded_string(", ", config);
             groups.entry(key).or_default().push(value);
         }
 
