@@ -11,6 +11,10 @@ impl Command for Sort {
         "sort"
     }
 
+    fn search_terms(&self) -> Vec<&str> {
+        vec!["order"]
+    }
+
     fn signature(&self) -> nu_protocol::Signature {
         Signature::build("sort")
             .input_output_types(vec![
