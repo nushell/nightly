@@ -5,7 +5,7 @@ use crate::{
     Range, ShellError, Signals, Span, Type, Value,
     ast::{Call, PathMember},
     engine::{EngineState, Stack},
-    shell_error::io::IoError,
+    shell_error::{generic::GenericError, io::IoError},
 };
 use std::{borrow::Cow, io::Write, ops::Deref, panic::Location};
 
@@ -705,24 +705,30 @@ impl PipelineData {
                         match *val {
                             Range::IntRange(range) => {
                                 if range.is_unbounded() {
-                                    return Err(ShellError::GenericError {
-                                        error: "Cannot create range".into(),
-                                        msg: "Unbounded ranges are not allowed when converting to this format".into(),
-                                        span: Some(span),
-                                        help: Some("Consider using ranges with valid start and end point.".into()),
-                                        inner: vec![],
-                                    });
+                                    return Err(ShellError::Generic(
+                                        GenericError::new(
+                                            "Cannot create range",
+                                            "Unbounded ranges are not allowed when converting to this format",
+                                            span,
+                                        )
+                                        .with_help(
+                                            "Consider using ranges with valid start and end point.",
+                                        ),
+                                    ));
                                 }
                             }
                             Range::FloatRange(range) => {
                                 if range.is_unbounded() {
-                                    return Err(ShellError::GenericError {
-                                        error: "Cannot create range".into(),
-                                        msg: "Unbounded ranges are not allowed when converting to this format".into(),
-                                        span: Some(span),
-                                        help: Some("Consider using ranges with valid start and end point.".into()),
-                                        inner: vec![],
-                                    });
+                                    return Err(ShellError::Generic(
+                                        GenericError::new(
+                                            "Cannot create range",
+                                            "Unbounded ranges are not allowed when converting to this format",
+                                            span,
+                                        )
+                                        .with_help(
+                                            "Consider using ranges with valid start and end point.",
+                                        ),
+                                    ));
                                 }
                             }
                         }
