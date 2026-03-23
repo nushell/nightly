@@ -28,7 +28,7 @@ use nu_protocol::{
 use serde_json::Value as JsonValue;
 use std::{
     collections::HashMap,
-    io::{self, Cursor},
+    io::{self, Cursor, Read},
     path::{Path, PathBuf},
     str::FromStr,
     sync::mpsc::{self, RecvTimeoutError},
@@ -323,6 +323,22 @@ pub fn response_to_buffer(
     let byte_stream = ByteStream::read(reader, span, engine_state.signals().clone(), response_type);
 
     PipelineData::byte_stream(byte_stream.with_known_size(buffer_size), Some(metadata))
+}
+
+/// Read and discard the response body so the HTTP exchange completes (timeouts, keep-alive).
+/// Used when only response headers are shown but the server may still send a body.
+pub(crate) fn discard_response_body(response: Response, span: Span) -> Result<(), ShellError> {
+    let mut reader = UreqTimeoutExtractorReader {
+        r: response.into_body().into_reader(),
+    };
+    let mut buf = [0u8; 8192];
+    loop {
+        match reader.read(&mut buf) {
+            Ok(0) => return Ok(()),
+            Ok(_) => {}
+            Err(e) => return Err(ShellError::Io(IoError::new(e, span, None))),
+        }
+    }
 }
 
 fn extract_response_metadata(response: &Response, span: Span) -> PipelineMetadata {

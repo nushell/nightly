@@ -5,7 +5,7 @@ use nu_protocol::shell_error;
 use nu_test_support::prelude::*;
 
 #[test]
-fn http_options_is_success() -> Result {
+fn http_options_default_shows_response_headers() -> Result {
     let mut server = Server::new();
 
     let _mock = server
@@ -14,13 +14,48 @@ fn http_options_is_success() -> Result {
         .create();
 
     let code = format!(
-        "http options {url} | get headers.response | length",
+        "http options {url} | where name == allow | get value.0",
+        url = server.url()
+    );
+
+    test().run(code).expect_value_eq("OPTIONS, GET")
+}
+
+#[test]
+fn http_options_full_response_includes_response_headers() -> Result {
+    let mut server = Server::new();
+
+    let _mock = server
+        .mock("OPTIONS", "/")
+        .with_header("Allow", "OPTIONS, GET")
+        .create();
+
+    let code = format!(
+        "http options --full {url} | get headers.response | length",
         url = server.url()
     );
 
     let outcome: i64 = test().run(code)?;
     assert!(outcome > 0);
     Ok(())
+}
+
+#[test]
+fn http_options_with_allow_errors() -> Result {
+    let mut server = Server::new();
+
+    let _mock = server
+        .mock("OPTIONS", "/")
+        .with_status(400)
+        .with_header("x-error-header", "present")
+        .create();
+
+    let code = format!(
+        "http options -e {url} | where name == x-error-header | get value.0",
+        url = server.url()
+    );
+
+    test().run(code).expect_value_eq("present")
 }
 
 #[test]
