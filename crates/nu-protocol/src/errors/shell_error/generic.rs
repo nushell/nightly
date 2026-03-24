@@ -1,4 +1,4 @@
-use crate::{ShellError, Span};
+use crate::{ShellError, Span, shell_error::SpanOrLocation};
 use miette::Diagnostic;
 use nu_utils::location::Location;
 use std::{
@@ -45,18 +45,6 @@ pub struct GenericError {
     pub inner: Vec<ShellError>,
 }
 
-/// Represents where an error originated.
-///
-/// Most user-facing errors should point to a [`Span`].
-/// When no user span is available (for internal errors), store a [`Location`] string instead.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum SpanOrLocation {
-    /// A span in user-provided Nushell code.
-    Span(Span),
-    /// A [`Location`] string from Rust code where the error originated.
-    Location(String),
-}
-
 impl GenericError {
     /// Creates a new [`GenericError`] tied to user input.
     ///
@@ -100,6 +88,26 @@ impl GenericError {
             error: error.into(),
             msg: msg.into(),
             source: SpanOrLocation::Location(location.to_string()),
+            help: None,
+            inner: Vec::new(),
+        }
+    }
+
+    /// Creates a new [`GenericError`] for internal errors without a user span but a provided
+    /// Rust location.
+    ///
+    /// Use this in places where a [`Location`] is already recorded and just needs to passed on,
+    /// otherwise prefer [`new_internal`](Self::new_internal).
+    pub fn new_internal_with_location(
+        error: impl Into<Cow<'static, str>>,
+        msg: impl Into<Cow<'static, str>>,
+        location: impl Into<Location>,
+    ) -> Self {
+        Self {
+            code: DEFAULT_CODE.into(),
+            error: error.into(),
+            msg: msg.into(),
+            source: SpanOrLocation::Location(location.into().to_string()),
             help: None,
             inner: Vec::new(),
         }
