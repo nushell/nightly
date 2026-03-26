@@ -13,7 +13,7 @@ use web_time::Instant;
 use nu_color_config::{StyleComputer, TextStyle, color_from_hex};
 use nu_engine::{command_prelude::*, env_to_string};
 use nu_path::form::Absolute;
-use nu_pretty_hex::HexConfig;
+use nu_pretty_hex::{HexConfig, HexStyles};
 use nu_protocol::{
     ByteStream, Config, DataSource, ListStream, PipelineMetadata, Signals, TableMode,
     ValueIterator,
@@ -244,28 +244,7 @@ struct TableConfig {
     index: Option<usize>,
     use_ansi_coloring: bool,
     icons: bool,
-}
-
-impl TableConfig {
-    fn new(
-        view: TableView,
-        width: usize,
-        theme: TableMode,
-        abbreviation: Option<usize>,
-        index: Option<usize>,
-        use_ansi_coloring: bool,
-        icons: bool,
-    ) -> Self {
-        Self {
-            view,
-            width,
-            theme,
-            abbreviation,
-            index,
-            use_ansi_coloring,
-            icons,
-        }
-    }
+    hex_styles: HexStyles,
 }
 
 #[derive(Debug, Clone)]
@@ -281,7 +260,7 @@ enum TableView {
 
 struct CLIArgs {
     width: Option<i64>,
-    abbrivation: Option<usize>,
+    abbreviation: Option<usize>,
     theme: TableMode,
     expand: bool,
     expand_limit: Option<usize>,
@@ -298,19 +277,29 @@ fn parse_table_config(
     state: &EngineState,
     stack: &mut Stack,
 ) -> ShellResult<TableConfig> {
-    let args = get_cli_args(call, state, stack)?;
+    let args @ CLIArgs {
+        abbreviation,
+        theme,
+        index,
+        use_ansi_coloring,
+        icons,
+        ..
+    } = get_cli_args(call, state, stack)?;
+
     let table_view = get_table_view(&args);
     let term_width = get_table_width(args.width);
+    let hex_styles = get_hex_styles(state, stack);
 
-    let cfg = TableConfig::new(
-        table_view,
-        term_width,
-        args.theme,
-        args.abbrivation,
-        args.index,
-        args.use_ansi_coloring,
-        args.icons,
-    );
+    let cfg = TableConfig {
+        view: table_view,
+        width: term_width,
+        theme,
+        abbreviation,
+        index,
+        use_ansi_coloring,
+        icons,
+        hex_styles,
+    };
 
     Ok(cfg)
 }
@@ -335,7 +324,7 @@ fn get_cli_args(call: &Call<'_>, state: &EngineState, stack: &mut Stack) -> Shel
     let expand_flatten_separator: Option<String> =
         call.get_flag(state, stack, "flatten-separator")?;
     let collapse: bool = call.has_flag(state, stack, "collapse")?;
-    let abbrivation: Option<usize> = call
+    let abbreviation: Option<usize> = call
         .get_flag(state, stack, "abbreviated")?
         .or_else(|| stack.get_config(state).table.abbreviated_row_count);
     let theme =
@@ -347,7 +336,7 @@ fn get_cli_args(call: &Call<'_>, state: &EngineState, stack: &mut Stack) -> Shel
 
     Ok(CLIArgs {
         theme,
-        abbrivation,
+        abbreviation,
         collapse,
         expand,
         expand_limit,
@@ -458,14 +447,14 @@ fn handle_table_command(mut input: CmdInput<'_>) -> ShellResult<PipelineData> {
     match input.data {
         // Binary streams should behave as if they really are `binary` data, and printed as hex
         PipelineData::ByteStream(stream, _) if stream.type_() == ByteStreamType::Binary => Ok(
-            PipelineData::byte_stream(pretty_hex_stream(stream, input.call.head), None),
+            PipelineData::byte_stream(pretty_hex_stream(stream, input.cfg, input.call.head), None),
         ),
         PipelineData::ByteStream(..) => Ok(input.data),
         PipelineData::Value(Value::Binary { val, .. }, ..) => {
             let signals = input.engine_state.signals().clone();
             let stream = ByteStream::read_binary(val, input.call.head, signals);
             Ok(PipelineData::byte_stream(
-                pretty_hex_stream(stream, input.call.head),
+                pretty_hex_stream(stream, input.cfg, input.call.head),
                 None,
             ))
         }
@@ -505,12 +494,13 @@ fn handle_table_command(mut input: CmdInput<'_>) -> ShellResult<PipelineData> {
     }
 }
 
-fn pretty_hex_stream(stream: ByteStream, span: Span) -> ByteStream {
+fn pretty_hex_stream(stream: ByteStream, table_cfg: TableConfig, span: Span) -> ByteStream {
     let mut cfg = HexConfig {
         // We are going to render the title manually first
         title: true,
         // If building on 32-bit, the stream size might be bigger than a usize
         length: stream.known_size().and_then(|sz| sz.try_into().ok()),
+        styles: table_cfg.hex_styles,
         ..HexConfig::default()
     };
 
@@ -539,7 +529,8 @@ fn pretty_hex_stream(stream: ByteStream, span: Span) -> ByteStream {
 
             // Write the title at the beginning
             if cfg.title {
-                nu_pretty_hex::write_title(&mut write_buf, cfg, true).expect("format error");
+                nu_pretty_hex::write_title(&mut write_buf, cfg, table_cfg.use_ansi_coloring)
+                    .expect("format error");
                 cfg.title = false;
 
                 // Put the write_buf back into buffer
@@ -558,8 +549,13 @@ fn pretty_hex_stream(stream: ByteStream, span: Span) -> ByteStream {
                     })?;
 
                 if !read_buf.is_empty() {
-                    nu_pretty_hex::hex_write(&mut write_buf, &read_buf, cfg, Some(true))
-                        .expect("format error");
+                    nu_pretty_hex::hex_write(
+                        &mut write_buf,
+                        &read_buf,
+                        cfg,
+                        Some(table_cfg.use_ansi_coloring),
+                    )
+                    .expect("format error");
                     write_buf.push('\n');
 
                     // Advance the address offset for next time
@@ -1354,5 +1350,17 @@ fn get_table_width(width_param: Option<i64>) -> usize {
         w as usize
     } else {
         DEFAULT_TABLE_WIDTH
+    }
+}
+
+fn get_hex_styles(engine_state: &EngineState, stack: &mut Stack) -> HexStyles {
+    let comp = StyleComputer::from_config(engine_state, stack);
+    let null = Value::nothing(Span::unknown());
+    HexStyles {
+        null_char: comp.compute("binary_null_char", &null),
+        printable: comp.compute("binary_printable", &null),
+        whitespace: comp.compute("binary_whitespace", &null),
+        ascii_other: comp.compute("binary_ascii_other", &null),
+        non_ascii: comp.compute("binary_non_ascii", &null),
     }
 }
