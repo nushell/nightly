@@ -4667,6 +4667,7 @@ dependencies = [
 name = "nu-test-support"
 version = "0.111.1"
 dependencies = [
+ "bytes",
  "gatekeeper",
  "itertools 0.14.0",
  "kitest",
@@ -4686,6 +4687,7 @@ dependencies = [
  "nu-test-support-macros",
  "nu-utils",
  "num-format",
+ "rstest",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",

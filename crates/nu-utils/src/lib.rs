@@ -10,6 +10,8 @@ pub mod flatten_json;
 pub mod float;
 pub mod locale;
 pub mod location;
+#[doc(hidden)]
+pub mod module_path;
 mod multilife;
 pub mod net;
 mod nu_cow;
