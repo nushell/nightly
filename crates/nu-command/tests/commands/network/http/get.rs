@@ -338,6 +338,26 @@ fn http_get_response_metadata() -> Result {
     test().run(code).expect_value_eq(200)
 }
 
+#[test]
+fn http_get_content_type_metadata() -> Result {
+    let mut server = Server::new();
+
+    let _mock = server
+        .mock("GET", "/")
+        .with_status(200)
+        .with_header("content-type", "application/nuon")
+        .with_body("[1 2 3]")
+        .create();
+
+    let code = "
+        let url = $in
+        http get --raw $url | metadata | $in.content_type
+    ";
+    test()
+        .run_with_data(code, server.url())
+        .expect_value_eq("application/nuon")
+}
+
 #[cfg(unix)]
 #[rstest::rstest]
 #[case::all_proxy("ALL_PROXY")]

@@ -315,7 +315,8 @@ pub fn response_to_buffer(
     };
 
     // Extract response metadata before consuming the body
-    let metadata = extract_response_metadata(&response, span);
+    let metadata =
+        extract_response_metadata(&response, span).with_content_type(content_type_lowercase);
 
     let reader = UreqTimeoutExtractorReader {
         r: response.into_body().into_reader(),
