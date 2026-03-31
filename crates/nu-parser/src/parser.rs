@@ -4003,6 +4003,8 @@ pub fn parse_full_signature(working_set: &mut StateWorkingSet, spans: &[Span]) -
 
 pub fn parse_row_condition(working_set: &mut StateWorkingSet, spans: &[Span]) -> Expression {
     let pos = spans.first().map(|s| s.start).unwrap_or(0);
+    // New scope in case where there's already a variable named `$it`
+    working_set.enter_scope();
     let var_id = working_set.add_variable(b"$it".to_vec(), Span::new(pos, pos), Type::Any, false);
     let expression = parse_math_expression(working_set, spans, Some(var_id));
     let span = Span::concat(spans);
@@ -4056,6 +4058,7 @@ pub fn parse_row_condition(working_set: &mut StateWorkingSet, spans: &[Span]) ->
             working_set.add_block(Arc::new(block))
         }
     };
+    working_set.exit_scope();
 
     Expression::new(working_set, Expr::RowCondition(block_id), span, Type::Bool)
 }

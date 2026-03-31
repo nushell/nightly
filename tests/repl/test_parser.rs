@@ -1303,3 +1303,9 @@ fn reserved_variable_name_checking(#[case] code: &str) -> TestResult {
 fn allow_it_as_variable_name() -> TestResult {
     run_test("let it = 3; [1 2 3 4] | where $it > 2 | length", "2")
 }
+
+#[test]
+fn keep_variable_it_after_where() -> TestResult {
+    // Test for https://github.com/nushell/nushell/issues/17380
+    run_test("let it = 3; [1 2 3 4] | where $it > 2; $it", "3")
+}
