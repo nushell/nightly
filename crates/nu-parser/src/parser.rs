@@ -928,15 +928,23 @@ pub fn parse_multispan_value(
             // is it subexpression?
             // Not sure, but let's make it not, so the behavior is the same as previous version of nushell.
             let arg = parse_expression(working_set, &spans[*spans_idx..]);
-            *spans_idx = spans.len() - 1;
+            *spans_idx = spans.len().saturating_sub(1);
 
             arg
         }
         SyntaxShape::Signature => {
             trace!("parsing: signature");
 
-            let sig = parse_full_signature(working_set, &spans[*spans_idx..]);
-            *spans_idx = spans.len() - 1;
+            let sig = parse_full_signature(working_set, &spans[*spans_idx..], false);
+            *spans_idx = spans.len().saturating_sub(1);
+
+            sig
+        }
+        SyntaxShape::ExternalSignature => {
+            trace!("parsing: external signature");
+
+            let sig = parse_full_signature(working_set, &spans[*spans_idx..], true);
+            *spans_idx = spans.len().saturating_sub(1);
 
             sig
         }
@@ -2172,7 +2180,11 @@ pub fn parse_paren_expr(
     working_set.parse_errors.truncate(starting_error_count);
 
     if let SyntaxShape::Signature = shape {
-        return parse_signature(working_set, span);
+        return parse_signature(working_set, span, false);
+    }
+
+    if let SyntaxShape::ExternalSignature = shape {
+        return parse_signature(working_set, span, true);
     }
 
     let fcp_expr = parse_full_cell_path(working_set, None, span);
@@ -3937,7 +3949,11 @@ pub fn parse_input_output_types(
     output
 }
 
-pub fn parse_full_signature(working_set: &mut StateWorkingSet, spans: &[Span]) -> Expression {
+pub fn parse_full_signature(
+    working_set: &mut StateWorkingSet,
+    spans: &[Span],
+    is_external: bool,
+) -> Expression {
     match spans.len() {
         // This case should never happen. It corresponds to declarations like `def foo {}`,
         // which should throw a 'Missing required positional argument.' before getting to this point
@@ -3950,12 +3966,12 @@ pub fn parse_full_signature(working_set: &mut StateWorkingSet, spans: &[Span]) -
         }
 
         // e.g. `[ b"[foo: string]" ]`
-        1 => parse_signature(working_set, spans[0]),
+        1 => parse_signature(working_set, spans[0], is_external),
 
         // This case is needed to distinguish between e.g.
         // `[ b"[]", b"{ true }" ]` vs `[ b"[]:", b"int" ]`
         2 if working_set.get_span_contents(spans[1]).starts_with(b"{") => {
-            parse_signature(working_set, spans[0])
+            parse_signature(working_set, spans[0], is_external)
         }
 
         // This should handle every other case, e.g.
@@ -3966,11 +3982,15 @@ pub fn parse_full_signature(working_set: &mut StateWorkingSet, spans: &[Span]) -
             let (mut arg_signature, input_output_types_pos) =
                 if working_set.get_span_contents(spans[0]).ends_with(b":") {
                     (
-                        parse_signature(working_set, Span::new(spans[0].start, spans[0].end - 1)),
+                        parse_signature(
+                            working_set,
+                            Span::new(spans[0].start, spans[0].end.saturating_sub(1)),
+                            is_external,
+                        ),
                         1,
                     )
                 } else if working_set.get_span_contents(spans[1]) == b":" {
-                    (parse_signature(working_set, spans[0]), 2)
+                    (parse_signature(working_set, spans[0], is_external), 2)
                 } else {
                     // This should be an error case, but we call parse_signature anyway
                     // so it can handle the various possible errors
@@ -3981,7 +4001,7 @@ pub fn parse_full_signature(working_set: &mut StateWorkingSet, spans: &[Span]) -
                     ));
                     // (garbage(working_set, Span::concat(spans)), 1)
 
-                    (parse_signature(working_set, spans[0]), 1)
+                    (parse_signature(working_set, spans[0], is_external), 1)
                 };
 
             let input_output_types =
@@ -4063,7 +4083,11 @@ pub fn parse_row_condition(working_set: &mut StateWorkingSet, spans: &[Span]) ->
     Expression::new(working_set, Expr::RowCondition(block_id), span, Type::Bool)
 }
 
-pub fn parse_signature(working_set: &mut StateWorkingSet, span: Span) -> Expression {
+pub fn parse_signature(
+    working_set: &mut StateWorkingSet,
+    span: Span,
+    is_external: bool,
+) -> Expression {
     let bytes = working_set.get_span_contents(span);
 
     let mut start = span.start;
@@ -4087,12 +4111,16 @@ pub fn parse_signature(working_set: &mut StateWorkingSet, span: Span) -> Express
         working_set.error(ParseError::Unclosed("] or )".into(), Span::new(end, end)));
     }
 
-    let sig = parse_signature_helper(working_set, Span::new(start, end));
+    let sig = parse_signature_helper(working_set, Span::new(start, end), is_external);
 
     Expression::new(working_set, Expr::Signature(sig), span, Type::Any)
 }
 
-pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> Box<Signature> {
+pub fn parse_signature_helper(
+    working_set: &mut StateWorkingSet,
+    span: Span,
+    is_external: bool,
+) -> Box<Signature> {
     enum ParseMode {
         Arg,
         AfterCommaArg,
@@ -4206,6 +4234,22 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                         }
                     }
                 } else {
+                    let mut check_and_add_variable =
+                        |working_set: &mut StateWorkingSet,
+                         var_name: Vec<u8>,
+                         ty: Type,
+                         span: Span| {
+                            if is_external {
+                                None
+                            } else {
+                                ensure_not_reserved_variable_name(working_set, &var_name, span);
+                                let var_id =
+                                    working_set.add_variable_without_scope(span, ty, false);
+                                pending_scope_inserts.push((var_name, var_id));
+                                Some(var_id)
+                            }
+                        };
+
                     match parse_mode {
                         ParseMode::Arg | ParseMode::AfterCommaArg | ParseMode::AfterType => {
                             // Long flag with optional short form following with no whitespace, e.g. --output, --age(-a)
@@ -4230,15 +4274,12 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                     ))
                                 }
 
-                                ensure_not_reserved_variable_name(
+                                let var_id = check_and_add_variable(
                                     working_set,
-                                    &variable_name,
+                                    variable_name,
+                                    Type::Bool,
                                     span,
                                 );
-
-                                let var_id =
-                                    working_set.add_variable_without_scope(span, Type::Bool, false);
-                                pending_scope_inserts.push((variable_name, var_id));
 
                                 // If there's no short flag, exit now. Otherwise, parse it.
                                 if flags.len() == 1 {
@@ -4249,7 +4290,7 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                             long,
                                             short: None,
                                             required: false,
-                                            var_id: Some(var_id),
+                                            var_id,
                                             default_value: None,
                                             completion: None,
                                         },
@@ -4289,7 +4330,7 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                                 long,
                                                 short: Some(chars[0]),
                                                 required: false,
-                                                var_id: Some(var_id),
+                                                var_id,
                                                 default_value: None,
                                                 completion: None,
                                             },
@@ -4322,15 +4363,12 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                     ))
                                 }
 
-                                ensure_not_reserved_variable_name(
+                                let var_id = check_and_add_variable(
                                     working_set,
-                                    &variable_name,
+                                    variable_name,
+                                    Type::Bool,
                                     span,
                                 );
-
-                                let var_id =
-                                    working_set.add_variable_without_scope(span, Type::Bool, false);
-                                pending_scope_inserts.push((variable_name, var_id));
 
                                 args.push(Arg::Flag {
                                     flag: Flag {
@@ -4339,7 +4377,7 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                         long: String::new(),
                                         short: Some(chars[0]),
                                         required: false,
-                                        var_id: Some(var_id),
+                                        var_id,
                                         default_value: None,
                                         completion: None,
                                     },
@@ -4397,22 +4435,19 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                     ))
                                 }
 
-                                ensure_not_reserved_variable_name(
+                                let var_id = check_and_add_variable(
                                     working_set,
-                                    optional_param,
+                                    optional_param.to_vec(),
+                                    Type::Any,
                                     span,
                                 );
-
-                                let var_id =
-                                    working_set.add_variable_without_scope(span, Type::Any, false);
-                                pending_scope_inserts.push((optional_param.to_vec(), var_id));
 
                                 args.push(Arg::Positional {
                                     arg: PositionalArg {
                                         desc: String::new(),
                                         name,
                                         shape: SyntaxShape::Any,
-                                        var_id: Some(var_id),
+                                        var_id,
                                         default_value: None,
                                         completion: None,
                                     },
@@ -4433,17 +4468,18 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                     ))
                                 }
 
-                                ensure_not_reserved_variable_name(working_set, contents, span);
-
-                                let var_id =
-                                    working_set.add_variable_without_scope(span, Type::Any, false);
-                                pending_scope_inserts.push((contents_vec, var_id));
+                                let var_id = check_and_add_variable(
+                                    working_set,
+                                    contents_vec,
+                                    Type::Any,
+                                    span,
+                                );
 
                                 args.push(Arg::RestPositional(PositionalArg {
                                     desc: String::new(),
                                     name,
                                     shape: SyntaxShape::Any,
-                                    var_id: Some(var_id),
+                                    var_id,
                                     default_value: None,
                                     completion: None,
                                 }));
@@ -4461,11 +4497,12 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                     ))
                                 }
 
-                                ensure_not_reserved_variable_name(working_set, &contents_vec, span);
-
-                                let var_id =
-                                    working_set.add_variable_without_scope(span, Type::Any, false);
-                                pending_scope_inserts.push((contents_vec, var_id));
+                                let var_id = check_and_add_variable(
+                                    working_set,
+                                    contents_vec,
+                                    Type::Any,
+                                    span,
+                                );
 
                                 // Positional arg, required
                                 args.push(Arg::Positional {
@@ -4473,7 +4510,7 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                         desc: String::new(),
                                         name,
                                         shape: SyntaxShape::Any,
-                                        var_id: Some(var_id),
+                                        var_id,
                                         default_value: None,
                                         completion: None,
                                     },
@@ -4518,13 +4555,15 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                         required: _,
                                         type_annotated,
                                     } => {
-                                        working_set.set_variable_type(
-                                            var_id.expect(
-                                                "internal error: all custom parameters must have \
-                                                 var_ids",
-                                            ),
-                                            syntax_shape.to_type(),
-                                        );
+                                        if !is_external {
+                                            working_set.set_variable_type(
+                                                var_id.expect(
+                                                    "internal error: all custom parameters must have \
+                                                    var_ids",
+                                                ),
+                                                syntax_shape.to_type(),
+                                            );
+                                        }
                                         *completion = completer;
                                         *shape = syntax_shape;
                                         *type_annotated = true;
@@ -4535,13 +4574,15 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                         completion,
                                         ..
                                     }) => {
-                                        working_set.set_variable_type(
-                                            var_id.expect(
-                                                "internal error: all custom parameters must have \
-                                                 var_ids",
-                                            ),
-                                            Type::List(Box::new(syntax_shape.to_type())),
-                                        );
+                                        if !is_external {
+                                            working_set.set_variable_type(
+                                                var_id.expect(
+                                                    "internal error: all custom parameters must have \
+                                                    var_ids",
+                                                ),
+                                                Type::List(Box::new(syntax_shape.to_type())),
+                                            );
+                                        }
                                         *completion = completer;
                                         *shape = syntax_shape;
                                     }
@@ -4555,7 +4596,9 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                                             },
                                         type_annotated,
                                     } => {
-                                        working_set.set_variable_type(var_id.expect("internal error: all custom parameters must have var_ids"), syntax_shape.to_type());
+                                        if !is_external {
+                                            working_set.set_variable_type(var_id.expect("internal error: all custom parameters must have var_ids"), syntax_shape.to_type());
+                                        }
                                         if syntax_shape == SyntaxShape::Boolean {
                                             working_set.error(ParseError::LabeledError(
                                                 "Type annotations are not allowed for boolean switches.".to_string(),
@@ -4572,7 +4615,14 @@ pub fn parse_signature_helper(working_set: &mut StateWorkingSet, span: Span) -> 
                             parse_mode = ParseMode::AfterType;
                         }
                         ParseMode::DefaultValue => {
-                            if let Some(last) = args.last_mut() {
+                            if is_external {
+                                working_set.error(ParseError::LabeledError(
+                                    "Default values are not allowed for external commands."
+                                        .to_string(),
+                                    "Remove the default value.".to_string(),
+                                    span,
+                                ));
+                            } else if let Some(last) = args.last_mut() {
                                 let expression = parse_value(working_set, span, &SyntaxShape::Any);
 
                                 //TODO check if we're replacing a custom parameter already
@@ -5383,7 +5433,7 @@ pub fn parse_closure_expression(
             };
 
             let signature_span = Span::new(start_point, end_point);
-            let signature = parse_signature_helper(working_set, signature_span);
+            let signature = parse_signature_helper(working_set, signature_span, false);
 
             (Some((signature, signature_span)), amt_to_skip)
         }
@@ -5478,6 +5528,7 @@ pub fn parse_value(
             | SyntaxShape::List(_)
             | SyntaxShape::Table(_)
             | SyntaxShape::Signature
+            | SyntaxShape::ExternalSignature
             | SyntaxShape::Filepath
             | SyntaxShape::String
             | SyntaxShape::GlobPattern
@@ -5541,7 +5592,8 @@ pub fn parse_value(
         SyntaxShape::GlobPattern => parse_glob_pattern(working_set, span),
         SyntaxShape::String => parse_string(working_set, span),
         SyntaxShape::Binary => parse_binary(working_set, span),
-        SyntaxShape::Signature if bytes.starts_with(b"[") => parse_signature(working_set, span),
+        SyntaxShape::Signature if bytes.starts_with(b"[") => parse_signature(working_set, span, false),
+        SyntaxShape::ExternalSignature if bytes.starts_with(b"[") => parse_signature(working_set, span, true),
         SyntaxShape::List(elem) if bytes.starts_with(b"[") => {
             parse_table_expression(working_set, span, elem)
         }

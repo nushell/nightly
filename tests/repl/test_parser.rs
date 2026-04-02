@@ -817,6 +817,24 @@ fn duration_with_float_number() -> TestResult {
 }
 
 #[test]
+fn extern_with_reserved_variable_name_1() -> TestResult {
+    run_test("extern cmd [in, --env]", "")
+}
+
+#[test]
+fn extern_with_reserved_variable_name_2() -> TestResult {
+    run_test("export extern cmd (in, --env, ...nu)", "")
+}
+
+#[test]
+fn extern_errors_with_default_value_in_signature() -> TestResult {
+    fail_test(
+        "extern cmd [in: bool=true]",
+        "Default values are not allowed for external commands",
+    )
+}
+
+#[test]
 fn duration_with_underscores_1() -> TestResult {
     run_test("420_min", "7hr")
 }
