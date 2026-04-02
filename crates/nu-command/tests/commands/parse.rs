@@ -41,6 +41,38 @@ mod simple {
     }
 
     #[test]
+    fn char_lbrace_before_capture() -> nu_test_support::Result {
+        use nu_test_support::prelude::*;
+        test()
+            .run(r#""1234{56" | parse $'{a}(char lbrace){b}' | get a.0"#)
+            .expect_value_eq("1234")
+    }
+
+    #[test]
+    fn double_brace_at_end_matches_literal_brace_with_capture() -> nu_test_support::Result {
+        use nu_test_support::prelude::*;
+        test()
+            .run(r#""{hello" | parse "{{foo}" | get foo.0"#)
+            .expect_value_eq("hello")
+    }
+
+    #[test]
+    fn double_brace_at_end_does_not_match_without_brace_in_input() -> nu_test_support::Result {
+        use nu_test_support::prelude::*;
+        test()
+            .run(r#""hello" | parse "{{foo}" | length"#)
+            .expect_value_eq(0)
+    }
+
+    #[test]
+    fn double_brace_with_suffix_before_capture_stays_literal() -> nu_test_support::Result {
+        use nu_test_support::prelude::*;
+        test()
+            .run(r#""{foo}x123" | parse "{{foo}x{bar}" | get bar.0"#)
+            .expect_value_eq("123")
+    }
+
+    #[test]
     fn properly_escapes_text() {
         let actual = nu!(r#"
             echo "(abc)123"
