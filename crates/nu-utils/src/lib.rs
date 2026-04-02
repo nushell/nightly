@@ -20,6 +20,7 @@ mod shared_cow;
 mod split_read;
 pub mod strings;
 pub mod sync;
+pub mod time;
 pub mod utils;
 
 pub use locale::get_system_locale;

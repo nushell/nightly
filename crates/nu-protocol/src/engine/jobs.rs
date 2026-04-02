@@ -7,7 +7,9 @@ use std::{
 };
 
 #[cfg(not(target_family = "wasm"))]
-use std::time::{Duration, Instant};
+use nu_utils::time::Instant;
+#[cfg(not(target_family = "wasm"))]
+use std::time::Duration;
 
 use nu_system::{UnfreezeHandle, kill_by_pid};
 
