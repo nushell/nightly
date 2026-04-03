@@ -4615,14 +4615,7 @@ pub fn parse_signature_helper(
                             parse_mode = ParseMode::AfterType;
                         }
                         ParseMode::DefaultValue => {
-                            if is_external {
-                                working_set.error(ParseError::LabeledError(
-                                    "Default values are not allowed for external commands."
-                                        .to_string(),
-                                    "Remove the default value.".to_string(),
-                                    span,
-                                ));
-                            } else if let Some(last) = args.last_mut() {
+                            if !is_external && let Some(last) = args.last_mut() {
                                 let expression = parse_value(working_set, span, &SyntaxShape::Any);
 
                                 //TODO check if we're replacing a custom parameter already

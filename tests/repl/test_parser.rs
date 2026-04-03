@@ -827,11 +827,8 @@ fn extern_with_reserved_variable_name_2() -> TestResult {
 }
 
 #[test]
-fn extern_errors_with_default_value_in_signature() -> TestResult {
-    fail_test(
-        "extern cmd [in: bool=true]",
-        "Default values are not allowed for external commands",
-    )
+fn extern_allows_default_value_in_signature() -> TestResult {
+    run_test("extern cmd [in: bool=true]", "")
 }
 
 #[test]
