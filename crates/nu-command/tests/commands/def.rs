@@ -1,5 +1,5 @@
-use nu_test_support::nu;
-use nu_test_support::playground::Playground;
+use nu_test_support::prelude::*;
+use rstest::rstest;
 use std::fs;
 
 #[test]
@@ -127,17 +127,15 @@ fn def_errors_with_multiple_commas() {
     assert!(actual.err.contains("expected parameter"));
 }
 
-#[test]
-fn def_fails_with_invalid_name() {
-    let err_msg = "command name can't be a number, a filesize, or contain a hash # or caret ^";
-    let actual = nu!(r#"def 1234 = echo "test""#);
-    assert!(actual.err.contains(err_msg));
-
-    let actual = nu!(r#"def 5gib = echo "test""#);
-    assert!(actual.err.contains(err_msg));
-
-    let actual = nu!("def ^foo [] {}");
-    assert!(actual.err.contains(err_msg));
+#[rstest]
+#[case::numeric("1234")]
+#[case::filesize_like("5gib")]
+#[case::caret("^foo")]
+fn def_fails_with_invalid_name(#[case] alias: &str) -> Result {
+    let code = format!("def {alias} = echo 'test'");
+    let err = test().run(code).expect_parse_error()?;
+    assert!(matches!(err, ParseError::CommandDefNotValid(_)));
+    Ok(())
 }
 
 #[test]

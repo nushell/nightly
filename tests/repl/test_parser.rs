@@ -1,5 +1,6 @@
 use crate::repl::tests::{TestResult, fail_test, run_test, run_test_contains, run_test_with_env};
-use nu_test_support::{nu, nu_repl_code};
+use nu_protocol::ParseError;
+use nu_test_support::{nu_repl_code, prelude::*};
 use rstest::rstest;
 use std::collections::HashMap;
 
@@ -418,30 +419,58 @@ fn append_assign_takes_pipeline() -> TestResult {
     )
 }
 
-#[test]
-fn assign_bare_external_fails() {
-    let result = nu!("$env.FOO = nu --testbin cococo");
-    assert!(!result.status.success());
-    assert!(result.err.contains("must be explicit"));
+#[rstest]
+#[case::bare("nu")]
+#[case::quoted("`nu`")]
+fn assign_external_fails(#[case] external: &str) -> Result {
+    let code = format!("$env.FOO = {external} --testbin cococo");
+    let err = test().add_nu_to_path().run(code).expect_parse_error()?;
+
+    match err {
+        ParseError::LabeledErrorWithHelp { error, .. } => {
+            assert_contains("must be explicit", error);
+            Ok(())
+        }
+        err => Err(err.into()),
+    }
+}
+
+#[rstest]
+#[case::with_caret("^nu")]
+#[case::quoted_with_caret("^`nu`")]
+fn assign_external_works(#[case] external: &str) -> Result {
+    let code = format!("$env.FOO = {external} --testbin cococo; $env.FOO");
+    test().add_nu_to_path().run(code).expect_value_eq("cococo")
 }
 
 #[test]
-fn assign_bare_external_with_caret() {
-    let result = nu!("$env.FOO = ^nu --testbin cococo");
-    assert!(result.status.success());
+fn percent_forces_builtin_command() -> Result {
+    test().run("%echo ok").expect_value_eq("ok")
 }
 
 #[test]
-fn assign_backtick_quoted_external_fails() {
-    let result = nu!("$env.FOO = `nu` --testbin cococo");
-    assert!(!result.status.success());
-    assert!(result.err.contains("must be explicit"));
+fn percent_prefers_builtin_when_custom_shadows_name() -> Result {
+    let mut tester = test();
+    let () = tester.run("def ls [] { 'hi' }")?;
+    tester
+        .run("(%ls | describe) == 'string'")
+        .expect_value_eq(false)
 }
 
-#[test]
-fn assign_backtick_quoted_external_with_caret() {
-    let result = nu!("$env.FOO = ^`nu` --testbin cococo");
-    assert!(result.status.success());
+#[rstest]
+#[case::unknown_command("%nu --version")]
+#[case::custom_command("def foo [] { 'ok' }; %foo")]
+#[case::alias_to_internal("def foo [] { 'ok' }; alias bar = foo; %bar")]
+#[case::alias_to_external("alias ext = ^nu --version; %ext")]
+fn percent_requires_builtin(#[case] code: &str) -> Result {
+    let err = test().run(code).expect_parse_error()?;
+    match err {
+        ParseError::LabeledErrorWithHelp { error, .. } => {
+            assert_contains("percent sigil requires a built-in command", error);
+            Ok(())
+        }
+        err => Err(err.into()),
+    }
 }
 
 #[test]
