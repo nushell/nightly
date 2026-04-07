@@ -317,7 +317,7 @@ impl Evaluator {
                 Ok((new_state, eval_result)) => {
                     let mut state = self.state.lock().await;
                     *state = new_state;
-                    eval_result
+                    eval_result.map(|o| o.response)
                 }
                 Err(_) => Err(rmcp::ErrorData::internal_error(
                     "Evaluation task panicked".to_string(),
@@ -455,11 +455,25 @@ fn format_command_help(signature: &nu_protocol::Signature) -> String {
     output.trim_end().to_string()
 }
 
+/// Result of a successful evaluation, containing both the MCP response
+/// (which may truncate large output with a `$history` reference) and the
+/// full untruncated output for use by promoted background jobs.
+struct EvalOutput {
+    /// The formatted MCP response (NUON record with cwd, history_index, output/note).
+    response: String,
+    /// The full output NUON string, never truncated.
+    full_output: String,
+}
+
 /// Registers a [`ThreadJob`] for a still-running evaluation and spawns a task
 /// that delivers results to the main thread's mailbox (job 0) on completion.
 /// Shares the forked evaluation's interrupt signal so `job kill` works.
+///
+/// The promoted path sends the **full** (non-truncated) output through the
+/// mailbox so `job recv` returns usable data instead of a dangling `$history`
+/// reference.
 fn promote_to_background_job(
-    result_rx: oneshot::Receiver<(EvalState, Result<String, rmcp::ErrorData>)>,
+    result_rx: oneshot::Receiver<(EvalState, Result<EvalOutput, rmcp::ErrorData>)>,
     interrupt: Arc<AtomicBool>,
     jobs: Arc<SyncMutex<Jobs>>,
     root_job_sender: Sender<Mail>,
@@ -481,7 +495,7 @@ fn promote_to_background_job(
 
     tokio::spawn(async move {
         let output = match result_rx.await {
-            Ok((_state, Ok(output))) => output,
+            Ok((_state, Ok(eval_output))) => eval_output.full_output,
             Ok((_state, Err(err))) => format!("Error: {}", err.message),
             Err(_) => "Evaluation task panicked".to_string(),
         };
@@ -532,7 +546,7 @@ fn job_description(source: &str) -> String {
 fn eval_inner(
     mut state: EvalState,
     nu_source: &str,
-) -> (EvalState, Result<String, rmcp::ErrorData>) {
+) -> (EvalState, Result<EvalOutput, rmcp::ErrorData>) {
     let EvalState {
         engine_state,
         stack,
@@ -549,7 +563,7 @@ fn eval_on_state(
     stack: &mut Stack,
     history: &mut History,
     nu_source: &str,
-) -> Result<String, rmcp::ErrorData> {
+) -> Result<EvalOutput, rmcp::ErrorData> {
     let (block, delta) = {
         let mut working_set = StateWorkingSet::new(engine_state);
         let block = nu_parser::parse(&mut working_set, None, nu_source.as_bytes(), false);
@@ -617,19 +631,24 @@ fn eval_on_state(
             ),
         );
     } else {
-        record.push("output", Value::string(output_nuon, block_span));
+        record.push("output", Value::string(&output_nuon, block_span));
     }
 
-    let response = Value::record(record, block_span);
+    let nuon_config = nuon::ToNuonConfig::default()
+        .style(nuon::ToStyle::Raw)
+        .span(Some(block_span));
 
-    nuon::to_nuon(
+    let response = nuon::to_nuon(
         engine_state,
-        &response,
-        nuon::ToNuonConfig::default()
-            .style(nuon::ToStyle::Raw)
-            .span(Some(block_span)),
+        &Value::record(record, block_span),
+        nuon_config,
     )
-    .map_err(|e| shell_error_to_mcp_error(e, engine_state, block_span))
+    .map_err(|e| shell_error_to_mcp_error(e, engine_state, block_span))?;
+
+    Ok(EvalOutput {
+        response,
+        full_output: output_nuon,
+    })
 }
 
 /// Returns the duration after which a running evaluation is auto-promoted
@@ -670,7 +689,12 @@ fn process_pipeline(
         // Try to handle as a child process first (external commands)
         // This properly handles both stdout and stderr when capture_all() is used
         match stream.into_child() {
-            Ok(child) => {
+            Ok(mut child) => {
+                // `process_pipeline` reports the captured output itself. Mark the child
+                // exit status as handled so `pipefail` does not re-raise a
+                // `non_zero_exit_code` after we already collected stdout/stderr.
+                child.ignore_error(true);
+
                 let output = child
                     .wait_with_output()
                     .map_err(|e| shell_error_to_mcp_error(e, engine_state, call_span))?;
@@ -736,6 +760,98 @@ fn process_pipeline(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nu_engine::eval_expression;
+    use nu_protocol::{
+        ShellError, Signature, SyntaxShape, Value,
+        engine::{Call, Command as NuCommand, StateWorkingSet},
+        shell_error::io::IoError,
+    };
+    use std::process::{Command as ProcessCommand, Stdio};
+
+    #[derive(Clone)]
+    struct TestRunExternal;
+
+    impl NuCommand for TestRunExternal {
+        fn name(&self) -> &str {
+            "run-external"
+        }
+
+        fn signature(&self) -> Signature {
+            Signature::build("run-external")
+                .rest(
+                    "args",
+                    SyntaxShape::String,
+                    "External command and arguments",
+                )
+                .allows_unknown_args()
+        }
+
+        fn description(&self) -> &str {
+            "Run an external command for test coverage"
+        }
+
+        fn run(
+            &self,
+            engine_state: &EngineState,
+            stack: &mut Stack,
+            call: &Call,
+            _input: PipelineData,
+        ) -> Result<PipelineData, ShellError> {
+            let args: Vec<Value> =
+                call.rest_iter_flattened(engine_state, stack, eval_expression::<WithoutDebug>, 0)?;
+            let args = args
+                .into_iter()
+                .map(|value| value.coerce_into_string())
+                .collect::<Result<Vec<_>, ShellError>>()?;
+
+            let mut args = args.into_iter();
+            let program = args.next().ok_or_else(|| ShellError::MissingParameter {
+                param_name: "external command".into(),
+                span: call.head,
+            })?;
+
+            let output = ProcessCommand::new(program)
+                .args(args)
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                .map_err(IoError::factory(call.head, None))?;
+
+            let mut combined = Vec::new();
+            combined.extend(output.stdout);
+            if !output.stderr.is_empty() {
+                if !combined.is_empty() {
+                    combined.push(b'\n');
+                }
+                combined.extend(output.stderr);
+            }
+
+            let output_string = String::from_utf8_lossy(&combined).into_owned();
+            Ok(PipelineData::Value(
+                Value::string(output_string, call.head),
+                None,
+            ))
+        }
+    }
+
+    #[cfg(unix)]
+    fn external_engine_state() -> EngineState {
+        let mut engine_state = nu_cmd_lang::create_default_context();
+        let mut working_set = StateWorkingSet::new(&engine_state);
+        working_set.add_decl(Box::new(TestRunExternal));
+        engine_state
+            .merge_delta(working_set.render())
+            .expect("should add run-external command");
+
+        let cwd = std::env::current_dir().expect("current directory should exist");
+        engine_state.add_env_var("PWD".into(), Value::test_string(cwd.to_string_lossy()));
+        engine_state.add_env_var(
+            "PATH".into(),
+            Value::test_string(std::env::var("PATH").expect("PATH should be set")),
+        );
+        engine_state
+    }
 
     #[test]
     fn test_evaluator_response_format() -> Result<(), Box<dyn std::error::Error>> {
@@ -1023,6 +1139,56 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn test_failing_external_command_returns_captured_output()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let engine_state = external_engine_state();
+        let evaluator = Evaluator::new(engine_state);
+
+        let result = evaluator.eval("sh -c 'printf stdout; printf stderr >&2; exit 7'")?;
+
+        assert!(
+            result.contains("stdout"),
+            "Expected stdout from external command, got: {result}"
+        );
+        assert!(
+            result.contains("stderr"),
+            "Expected stderr from external command, got: {result}"
+        );
+
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_external_command_promotion_respects_promote_after_env() {
+        let engine_state = external_engine_state();
+        let evaluator = Evaluator::new(engine_state);
+
+        evaluator
+            .eval_async(
+                "$env.NU_MCP_PROMOTE_AFTER = 100ms",
+                CancellationToken::new(),
+            )
+            .await
+            .expect("setting promotion timeout should succeed");
+
+        let result = evaluator
+            .eval_async(
+                "sh -c 'sleep 0.2; printf stdout; printf stderr >&2; exit 7'",
+                CancellationToken::new(),
+            )
+            .await;
+
+        let err = result.expect_err("long-running external command should be promoted");
+        assert!(
+            err.message.contains("promoted to background job"),
+            "promotion error should mention background jobs, got: {}",
+            err.message
+        );
+    }
+
     #[test]
     fn test_history_ring_buffer() -> Result<(), Box<dyn std::error::Error>> {
         let engine_state = nu_cmd_lang::create_default_context();
@@ -1096,5 +1262,64 @@ mod tests {
             result.contains('1') && !result.contains("999"),
             "Variable should still be 1 after promoted eval, got: {result}"
         );
+    }
+
+    #[tokio::test]
+    async fn test_promoted_background_job_sends_full_output() {
+        let mut engine_state = nu_cmd_lang::create_default_context();
+        let history = History::new(&mut engine_state);
+        let state = EvalState {
+            engine_state,
+            stack: Stack::new(),
+            history,
+        };
+
+        let (result_tx, result_rx) = oneshot::channel();
+        let (mail_tx, mail_rx) = mpsc::channel();
+        let jobs = Arc::new(SyncMutex::new(Jobs::default()));
+        let description = "mcp: test".to_string();
+
+        let eval_output = EvalOutput {
+            response: "response note".to_string(),
+            full_output: "full background output".to_string(),
+        };
+
+        result_tx
+            .send((state, Ok(eval_output)))
+            .unwrap_or_else(|_| panic!("send background result should succeed"));
+
+        let err = promote_to_background_job(
+            result_rx,
+            Arc::new(AtomicBool::new(false)),
+            jobs,
+            mail_tx,
+            description,
+        )
+        .expect_err("promotion should return an error indicating background job promotion");
+
+        assert!(
+            err.message.contains("promoted to background job"),
+            "promotion error should mention background jobs, got: {}",
+            err.message
+        );
+
+        let (_tag, pipeline_data) = loop {
+            match mail_rx.try_recv() {
+                Ok(mail) => break mail,
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                Err(err) => panic!("mailbox receive failed: {err}"),
+            }
+        };
+
+        let value = pipeline_data
+            .into_value(Span::unknown())
+            .expect("mailbox payload should convert to value");
+        let Value::String { val, .. } = value else {
+            panic!("expected string payload, got: {value:?}");
+        };
+
+        assert_eq!(val, "full background output");
     }
 }
