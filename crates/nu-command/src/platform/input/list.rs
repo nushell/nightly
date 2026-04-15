@@ -973,6 +973,26 @@ impl<'a> SelectWidget<'a> {
         }
     }
 
+    /// Drain the remaining pending stream into `self.items` without running `update_filter`.
+    ///
+    /// Used by `update_filter` so that fuzzy searches always operate on the complete dataset,
+    /// even when items were not yet loaded by the scroll-based prefetch heuristic.
+    fn drain_pending_stream(&mut self) {
+        if self.pending_stream.is_none() {
+            return;
+        }
+        while let Some(val) = self.pending_stream.as_mut().and_then(|s| s.next_value()) {
+            let item = self.make_select_item(val);
+            self.items.push(item);
+        }
+        self.pending_stream = None;
+        if self.is_table_mode()
+            && let Some(layout) = &mut self.table_layout
+        {
+            *layout = InputList::calculate_table_layout(&layout.columns, &self.items);
+        }
+    }
+
     /// Ensure we have enough items to show around the cursor; stream if needed.
     fn maybe_load_more(&mut self) {
         if self.pending_stream.is_none() {
@@ -1441,6 +1461,14 @@ impl<'a> SelectWidget<'a> {
                 self.navigate_page_down();
                 KeyAction::Continue
             }
+            KeyCode::Tab => {
+                self.navigate_down();
+                KeyAction::Continue
+            }
+            KeyCode::BackTab => {
+                self.navigate_up();
+                KeyAction::Continue
+            }
             _ => KeyAction::Continue,
         }
     }
@@ -1504,6 +1532,16 @@ impl<'a> SelectWidget<'a> {
                 self.navigate_page_down();
                 KeyAction::Continue
             }
+            KeyCode::Tab => {
+                self.toggle_current();
+                self.navigate_down();
+                KeyAction::Continue
+            }
+            KeyCode::BackTab => {
+                self.toggle_current();
+                self.navigate_up();
+                KeyAction::Continue
+            }
             _ => KeyAction::Continue,
         }
     }
@@ -1516,6 +1554,16 @@ impl<'a> SelectWidget<'a> {
         match key.code {
             KeyCode::Esc => KeyAction::Cancel,
             KeyCode::Enter => KeyAction::Confirm,
+
+            // Tab: navigate down (mirrors single/multi mode behavior)
+            KeyCode::Tab | KeyCode::Char('\t') => {
+                self.navigate_down();
+                KeyAction::Continue
+            }
+            KeyCode::BackTab => {
+                self.navigate_up();
+                KeyAction::Continue
+            }
 
             // List navigation
             KeyCode::Up | KeyCode::Char('p' | 'P') if ctrl => {
@@ -1549,31 +1597,37 @@ impl<'a> SelectWidget<'a> {
             KeyCode::Char('a' | 'A') if ctrl => {
                 // Ctrl-A: Move to beginning of line
                 self.filter_cursor = 0;
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('e' | 'E') if ctrl => {
                 // Ctrl-E: Move to end of line
                 self.filter_cursor = self.filter_text.len();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('b' | 'B') if ctrl => {
                 // Ctrl-B: Move back one character
                 self.move_filter_cursor_left();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('f' | 'F') if ctrl => {
                 // Ctrl-F: Move forward one character
                 self.move_filter_cursor_right();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('b' | 'B') if alt => {
                 // Alt-B: Move back one word
                 self.move_filter_cursor_word_left();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('f' | 'F') if alt => {
                 // Alt-F: Move forward one word
                 self.move_filter_cursor_word_right();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             // Settings toggles
@@ -1590,19 +1644,23 @@ impl<'a> SelectWidget<'a> {
             KeyCode::Left if ctrl || alt => {
                 // Ctrl/Alt-Left: Move back one word
                 self.move_filter_cursor_word_left();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Right if ctrl || alt => {
                 // Ctrl/Alt-Right: Move forward one word
                 self.move_filter_cursor_word_right();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Left => {
                 self.move_filter_cursor_left();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Right => {
                 self.move_filter_cursor_right();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
 
@@ -1768,26 +1826,32 @@ impl<'a> SelectWidget<'a> {
             // Readline: Cursor movement
             KeyCode::Char('a' | 'A') if ctrl => {
                 self.filter_cursor = 0;
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('e' | 'E') if ctrl => {
                 self.filter_cursor = self.filter_text.len();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('b' | 'B') if ctrl => {
                 self.move_filter_cursor_left();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('f' | 'F') if ctrl => {
                 self.move_filter_cursor_right();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('b' | 'B') if alt => {
                 self.move_filter_cursor_word_left();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Char('f' | 'F') if alt => {
                 self.move_filter_cursor_word_right();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             // Settings toggles
@@ -1803,18 +1867,22 @@ impl<'a> SelectWidget<'a> {
             }
             KeyCode::Left if ctrl || alt => {
                 self.move_filter_cursor_word_left();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Right if ctrl || alt => {
                 self.move_filter_cursor_word_right();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Left => {
                 self.move_filter_cursor_left();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
             KeyCode::Right => {
                 self.move_filter_cursor_right();
+                self.filter_text_changed = true;
                 KeyAction::Continue
             }
 
@@ -1922,8 +1990,17 @@ impl<'a> SelectWidget<'a> {
             self.cursor -= 1;
             self.adjust_scroll_up();
         } else if list_len > 0 {
-            // Wrap to bottom
-            self.cursor = list_len - 1;
+            // Wrap to bottom: drain the full stream first so we land on the true last item.
+            if self.pending_stream.is_some() {
+                self.drain_pending_stream();
+                if !self.filter_text.is_empty() {
+                    self.update_filter();
+                } else if !self.refined {
+                    self.filtered_indices = (0..self.items.len()).collect();
+                }
+            }
+            let list_len = self.current_list_len();
+            self.cursor = list_len.saturating_sub(1);
             self.adjust_scroll_down();
         }
     }
@@ -1984,6 +2061,15 @@ impl<'a> SelectWidget<'a> {
 
     /// Navigate to the end of the list
     fn navigate_end(&mut self) {
+        // Drain the full stream so End lands on the true last item.
+        if self.pending_stream.is_some() {
+            self.drain_pending_stream();
+            if !self.filter_text.is_empty() {
+                self.update_filter();
+            } else if !self.refined {
+                self.filtered_indices = (0..self.items.len()).collect();
+            }
+        }
         self.cursor = self.current_list_len().saturating_sub(1);
         self.adjust_scroll_down();
     }
@@ -2342,6 +2428,12 @@ impl<'a> SelectWidget<'a> {
     }
 
     fn update_filter(&mut self) {
+        // When a filter is active, eagerly drain any remaining stream items so searches
+        // operate on the complete dataset, not just the initial prefetch window.
+        if self.pending_stream.is_some() && !self.filter_text.is_empty() {
+            self.drain_pending_stream();
+        }
+
         let old_indices = std::mem::take(&mut self.filtered_indices);
 
         // Determine whether to filter from refined subset or all items
@@ -2491,6 +2583,11 @@ impl<'a> SelectWidget<'a> {
     /// (just toggled a single visible item, no cursor movement)
     fn can_do_multi_toggle_only_update(&self) -> bool {
         if self.first_render || self.width_changed || self.mode != SelectMode::Multi {
+            return false;
+        }
+        // If the cursor also moved (e.g. Tab toggles and navigates), a full redraw
+        // is needed so the ">" indicator follows the cursor.
+        if self.cursor != self.prev_cursor {
             return false;
         }
         if let Some(toggled) = self.toggled_item {
