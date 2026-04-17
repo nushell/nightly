@@ -407,7 +407,7 @@ impl<'a> Completer for CommandWideCompletion<'a> {
         let mut engine_state = working_set.permanent_state.clone();
         let _ = engine_state.merge_delta(working_set.delta.clone());
 
-        let result = nu_engine::eval_block::<WithoutDebug>(
+        let result = nu_engine::eval_block_with_early_return::<WithoutDebug>(
             &engine_state,
             &mut callee_stack,
             &block,

@@ -1123,21 +1123,24 @@ fn command_wide_completion_external() {
     match_suggestions(&expected, &suggestions);
 }
 
-#[test]
-fn command_wide_completion_custom() {
+#[rstest]
+// https://github.com/nushell/nushell/issues/18007
+#[case::explicit_return("return")]
+#[case::implicit_return("")]
+fn command_wide_completion_custom(#[case] return_code: &str) {
     let mut completer = custom_completer();
 
-    let sample = /* lang=nu */ r#"
-        def "nu-complete foo" [spans: list] {
-            $spans ++ [some more]
-        }
+    let sample = /* lang=nu */ format!(r#"
+        def "nu-complete foo" [spans: list] {{
+            {return_code} ($spans ++ [some more])
+        }}
 
         @complete "nu-complete foo"
-        def --wrapped "foo" [...rest] {}
+        def --wrapped "foo" [...rest] {{}}
 
-        foo bar baz"#;
+        foo bar baz"#);
 
-    let suggestions = completer.complete(sample, sample.len());
+    let suggestions = completer.complete(&sample, sample.len());
     let expected = vec!["foo", "bar", "baz", "some", "more"];
     match_suggestions(&expected, &suggestions);
 }
