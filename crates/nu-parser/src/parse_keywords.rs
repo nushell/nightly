@@ -2119,7 +2119,7 @@ fn parse_module_file(
         return None;
     };
 
-    let file_id = working_set.add_file(path.path().to_string_lossy().to_string(), &contents);
+    let file_id = working_set.add_file(&path.path().to_string_lossy(), &contents);
     let new_span = working_set.get_span_for_file(file_id);
 
     // Check if we've parsed the module before.

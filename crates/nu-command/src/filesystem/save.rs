@@ -623,7 +623,7 @@ fn stream_to_file(
 
         let res = loop {
             if let Err(err) = signals.check(&span) {
-                bar.abandoned_msg("# Cancelled #".to_owned());
+                bar.abandoned_msg("# Cancelled #");
                 return Err(err);
             }
 
@@ -647,7 +647,7 @@ fn stream_to_file(
         // If the process failed, stop the progress bar with an error message.
         if let Err(err) = res {
             let _ = file.flush();
-            bar.abandoned_msg("# Error while saving #".to_owned());
+            bar.abandoned_msg("# Error while saving #");
             Err(from_io_error(err).into())
         } else {
             file.flush().map_err(&from_io_error)?;

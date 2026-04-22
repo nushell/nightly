@@ -7503,17 +7503,14 @@ pub fn parse(
     scoped: bool,
 ) -> Arc<Block> {
     trace!("parse");
-    let name = match fname {
-        Some(fname) => {
-            // use the canonical name for this filename
-            nu_path::expand_to_real_path(fname)
-                .to_string_lossy()
-                .to_string()
-        }
-        None => "source".to_string(),
+
+    let file_id = {
+        let fname = fname.map(nu_path::expand_to_real_path);
+        let fname = fname.as_deref().map(|p| p.to_string_lossy());
+        let name = fname.as_deref().unwrap_or("source");
+        working_set.add_file(name, contents)
     };
 
-    let file_id = working_set.add_file(name, contents);
     let new_span = working_set.get_span_for_file(file_id);
 
     let previously_parsed_block = working_set.find_block_by_span(new_span);

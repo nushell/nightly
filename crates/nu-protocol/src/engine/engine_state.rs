@@ -1140,7 +1140,7 @@ mod engine_state_tests {
     fn add_file_gives_id() {
         let engine_state = EngineState::new();
         let mut engine_state = StateWorkingSet::new(&engine_state);
-        let id = engine_state.add_file("test.nu".into(), &[]);
+        let id = engine_state.add_file("test.nu", &[]);
 
         assert_eq!(id, FileId::new(0));
     }
@@ -1151,7 +1151,7 @@ mod engine_state_tests {
         let parent_id = engine_state.add_file("test.nu".into(), Arc::new([]));
 
         let mut working_set = StateWorkingSet::new(&engine_state);
-        let working_set_id = working_set.add_file("child.nu".into(), &[]);
+        let working_set_id = working_set.add_file("child.nu", &[]);
 
         assert_eq!(parent_id, FileId::new(0));
         assert_eq!(working_set_id, FileId::new(1));
@@ -1164,7 +1164,7 @@ mod engine_state_tests {
 
         let delta = {
             let mut working_set = StateWorkingSet::new(&engine_state);
-            let _ = working_set.add_file("child.nu".into(), &[]);
+            let _ = working_set.add_file("child.nu", &[]);
             working_set.render()
         };
 
