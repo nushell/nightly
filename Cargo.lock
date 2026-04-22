@@ -1717,6 +1717,7 @@ dependencies = [
  "quote",
  "rustc_version",
  "syn 2.0.117",
+ "unicode-xid",
 ]
 
 [[package]]
@@ -4674,6 +4675,7 @@ dependencies = [
  "bytes",
  "chrono",
  "chrono-humanize",
+ "derive_more 2.1.1",
  "dirs",
  "dirs-sys",
  "fancy-regex",
@@ -4765,6 +4767,7 @@ name = "nu-test-support"
 version = "0.112.3"
 dependencies = [
  "bytes",
+ "derive_more 2.1.1",
  "gatekeeper",
  "itertools 0.14.0",
  "kitest",
@@ -4810,6 +4813,7 @@ dependencies = [
  "byteyarn",
  "crossterm",
  "crossterm_winapi",
+ "derive_more 2.1.1",
  "fancy-regex",
  "lean_string",
  "log",
