@@ -201,6 +201,33 @@ fn help_module_description_1() -> Result {
 }
 
 #[test]
+fn help_module_description_ignores_leading_shebang() -> Result {
+    Playground::setup(
+        "help_module_description_ignores_leading_shebang",
+        |dirs, sandbox| {
+            sandbox.with_files(&[FileWithContent(
+                "spam.nu",
+                "\
+#!/usr/bin/env nu
+
+# module_line1
+#
+# module_line2
+
+export def foo [] {}
+",
+            )]);
+
+            let mut tester = test().cwd(dirs.test());
+            let description: String = tester
+                .run("use spam.nu *; help modules | where name == spam | get 0.description")?;
+            assert_eq!(description, "module_line1");
+            Ok(())
+        },
+    )
+}
+
+#[test]
 fn help_module_name() -> Result {
     Playground::setup("help_module_name", |dirs, sandbox| {
         sandbox.with_files(&[FileWithContent(

@@ -1819,13 +1819,19 @@ pub fn parse_export_env(
     (pipeline, Some(block_id))
 }
 
-fn collect_first_comments(tokens: &[Token]) -> Vec<Span> {
+fn collect_first_comments(working_set: &StateWorkingSet, tokens: &[Token]) -> Vec<Span> {
     let mut comments = vec![];
 
     let mut tokens_iter = tokens.iter().peekable();
     while let Some(token) = tokens_iter.next() {
         match token.contents {
             TokenContents::Comment => {
+                let comment = working_set.get_span_contents(token.span);
+
+                if comments.is_empty() && comment.starts_with(b"#!") {
+                    continue;
+                }
+
                 comments.push(token.span);
             }
             TokenContents::Eol => {
@@ -1862,7 +1868,7 @@ pub fn parse_module_block(
         working_set.error(err)
     }
 
-    let module_comments = collect_first_comments(&output);
+    let module_comments = collect_first_comments(working_set, &output);
 
     let (output, err) = lite_parse(&output, working_set);
     if let Some(err) = err {
