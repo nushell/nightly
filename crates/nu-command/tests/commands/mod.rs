@@ -137,6 +137,7 @@ mod upsert;
 mod url;
 mod use_;
 mod utouch;
+mod watch;
 mod where_;
 mod which;
 mod while_;

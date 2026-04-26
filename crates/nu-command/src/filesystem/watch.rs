@@ -1,4 +1,10 @@
-use itertools::{Either, Itertools};
+use std::{
+    path::PathBuf,
+    sync::mpsc::{Receiver, RecvTimeoutError, channel},
+    time::Duration,
+};
+
+use itertools::Either;
 use notify_debouncer_full::{
     DebouncedEvent, Debouncer, FileIdMap, new_debouncer,
     notify::{
@@ -6,17 +12,11 @@ use notify_debouncer_full::{
         event::{DataChange, ModifyKind, RenameMode},
     },
 };
+
 use nu_engine::{ClosureEval, command_prelude::*};
 use nu_protocol::{
     Signals, engine::Closure, report_shell_error, shell_error::generic::GenericError,
     shell_error::io::IoError,
-};
-
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-    sync::mpsc::{Receiver, RecvTimeoutError, channel},
-    time::Duration,
 };
 
 // durations chosen mostly arbitrarily
@@ -51,8 +51,8 @@ impl Command for Watch {
                     Type::Nothing,
                     Type::Table(vec![
                         ("operation".into(), Type::String),
-                        ("path".into(), Type::String),
-                        ("new_path".into(), Type::String),
+                        ("path".into(), Type::OneOf([Type::String, Type::Nothing].into())),
+                        ("new_path".into(), Type::OneOf([Type::String, Type::Nothing].into())),
                     ].into_boxed_slice())
                 ),
             ])
@@ -171,15 +171,23 @@ impl Command for Watch {
 
         let iter = WatchIterator::new(debouncer, rx, engine_state.signals().clone());
 
+        fn glob_filter(glob: Option<&nu_glob::Pattern>, ev: &WatchEvent) -> bool {
+            let Some(glob) = glob else { return true };
+            let path = ev
+                .path
+                .as_deref()
+                .or(ev.new_path.as_deref())
+                .expect("at least one of path or new_path should be present");
+            glob.matches_path(path)
+        }
+
         if let Some(closure) = closure {
             let mut closure = ClosureEval::new(engine_state, stack, closure);
 
             for events in iter {
                 for event in events? {
-                    let matches_glob = match &glob_pattern {
-                        Some(glob) => glob.matches_path(&event.path),
-                        None => true,
-                    };
+                    let matches_glob = glob_filter(glob_pattern.as_ref(), &event);
+
                     if verbose && glob_pattern.is_some() {
                         eprintln!("Matches glob: {matches_glob}");
                     }
@@ -187,14 +195,8 @@ impl Command for Watch {
                     if matches_glob {
                         let result = closure
                             .add_arg(event.operation.into_value(head))?
-                            .add_arg(event.path.to_string_lossy().into_value(head))?
-                            .add_arg(
-                                event
-                                    .new_path
-                                    .as_deref()
-                                    .map(Path::to_string_lossy)
-                                    .into_value(head),
-                            )?
+                            .add_arg(event.path.into_value(head))?
+                            .add_arg(event.new_path.into_value(head))?
                             .run_with_input(PipelineData::empty());
 
                         match result {
@@ -207,19 +209,14 @@ impl Command for Watch {
 
             Ok(PipelineData::empty())
         } else {
-            fn glob_filter(glob: Option<&nu_glob::Pattern>, path: &Path) -> bool {
-                let Some(glob) = glob else { return true };
-                glob.matches_path(path)
-            }
-
             let out = iter
                 .flat_map(|e| match e {
                     Ok(events) => Either::Right(events.into_iter().map(Ok)),
                     Err(err) => Either::Left(std::iter::once(Err(err))),
                 })
                 .filter_map(move |e| match e {
-                    Ok(ev) => glob_filter(glob_pattern.as_ref(), &ev.path)
-                        .then(|| WatchEventRecord::from(&ev).into_value(head)),
+                    Ok(ev) if glob_filter(glob_pattern.as_ref(), &ev) => Some(ev.into_value(head)),
+                    Ok(_) => None,
                     Err(err) => Some(Value::error(err, head)),
                 })
                 .into_pipeline_data(head, engine_state.signals().clone());
@@ -263,65 +260,71 @@ impl Command for Watch {
     }
 }
 
+#[derive(IntoValue)]
 struct WatchEvent {
-    operation: &'static str,
-    path: PathBuf,
+    operation: WatchEventKind,
+    path: Option<PathBuf>,
     new_path: Option<PathBuf>,
 }
 
 #[derive(IntoValue)]
-struct WatchEventRecord<'a> {
-    operation: &'static str,
-    path: Cow<'a, str>,
-    new_path: Option<Cow<'a, str>>,
+#[nu_value(rename_all = "UpperCamelCase")]
+enum WatchEventKind {
+    Create,
+    Write,
+    Rename,
+    Remove,
 }
 
-impl<'a> From<&'a WatchEvent> for WatchEventRecord<'a> {
-    fn from(value: &'a WatchEvent) -> Self {
-        Self {
-            operation: value.operation,
-            path: value.path.to_string_lossy(),
-            new_path: value.new_path.as_deref().map(Path::to_string_lossy),
-        }
+impl TryFrom<EventKind> for WatchEventKind {
+    type Error = ();
+
+    fn try_from(value: EventKind) -> Result<Self, Self::Error> {
+        Ok(match value {
+            EventKind::Create(_) => Self::Create,
+            EventKind::Remove(_) => Self::Remove,
+            EventKind::Modify(
+                ModifyKind::Data(DataChange::Content | DataChange::Any) | ModifyKind::Any,
+            ) => Self::Write,
+            EventKind::Modify(ModifyKind::Name(
+                RenameMode::Both | RenameMode::From | RenameMode::To,
+            )) => Self::Rename,
+            _ => return Err(()),
+        })
     }
 }
 
 impl TryFrom<DebouncedEvent> for WatchEvent {
     type Error = ();
 
-    fn try_from(mut ev: DebouncedEvent) -> Result<Self, Self::Error> {
+    fn try_from(ev: DebouncedEvent) -> Result<Self, Self::Error> {
         // TODO: Maybe we should handle all event kinds?
-        match ev.event.kind {
-            EventKind::Create(_) => ev.paths.pop().map(|p| WatchEvent {
-                operation: "Create",
-                path: p,
-                new_path: None,
-            }),
-            EventKind::Remove(_) => ev.paths.pop().map(|p| WatchEvent {
-                operation: "Remove",
-                path: p,
-                new_path: None,
-            }),
-            EventKind::Modify(
-                ModifyKind::Data(DataChange::Content | DataChange::Any) | ModifyKind::Any,
-            ) => ev.paths.pop().map(|p| WatchEvent {
-                operation: "Write",
-                path: p,
-                new_path: None,
-            }),
-            EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => ev
-                .paths
-                .drain(..)
-                .rev()
-                .next_array()
-                .map(|[from, to]| WatchEvent {
-                    operation: "Rename",
-                    path: from,
-                    new_path: Some(to),
-                }),
-            _ => None,
+        let DebouncedEvent {
+            event: notify::Event {
+                kind, mut paths, ..
+            },
+            ..
+        } = ev;
+
+        let (path, new_path) = match paths.as_mut_slice() {
+            [path] => (std::mem::take(path), None),
+            [path, new_path] => (std::mem::take(path), Some(std::mem::take(new_path))),
+            _ => return Err(()),
+        };
+
+        if let EventKind::Modify(ModifyKind::Name(RenameMode::To)) = kind {
+            Ok(WatchEvent {
+                operation: WatchEventKind::Rename,
+                path: None,
+                new_path: Some(path),
+            })
+        } else {
+            Ok(WatchEvent {
+                operation: kind.try_into()?,
+                path: Some(path),
+                new_path,
+            })
         }
-        .ok_or(())
     }
 }
 
