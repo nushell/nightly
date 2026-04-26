@@ -2426,7 +2426,40 @@ pub fn parse_string_interpolation(working_set: &mut StateWorkingSet, span: Span)
     let mut output = vec![];
     let mut mode = InterpolationMode::String;
     let mut token_start = start;
-    let mut delimiter_stack = vec![];
+
+    #[repr(u8)]
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Delimiter {
+        SingleQuote = b'\'',
+        DoubleQuote = b'"',
+        Backtick = b'`',
+        ParenLeft = b'(',
+        ParenRight = b')',
+    }
+
+    impl Delimiter {
+        const fn from_u8(b: u8) -> Option<Self> {
+            Some(match b {
+                b'\'' => Self::SingleQuote,
+                b'"' => Self::DoubleQuote,
+                b'`' => Self::Backtick,
+                b'(' => Self::ParenLeft,
+                b')' => Self::ParenRight,
+                _ => return None,
+            })
+        }
+        const fn is_paren(self) -> bool {
+            matches!(self, Self::ParenLeft | Self::ParenRight)
+        }
+        const fn pair(self) -> Self {
+            match self {
+                Self::ParenLeft => Self::ParenRight,
+                Self::ParenRight => Self::ParenLeft,
+                _ => self,
+            }
+        }
+    }
+    let mut delimiter_stack: Vec<Delimiter> = vec![];
 
     let mut consecutive_backslashes: usize = 0;
 
@@ -2474,44 +2507,35 @@ pub fn parse_string_interpolation(working_set: &mut StateWorkingSet, span: Span)
         }
 
         if mode == InterpolationMode::Expression {
-            let byte = current_byte;
-            if let Some(b'\'') = delimiter_stack.last() {
-                if byte == b'\'' {
-                    delimiter_stack.pop();
-                }
-            } else if let Some(b'"') = delimiter_stack.last() {
-                if byte == b'"' {
-                    delimiter_stack.pop();
-                }
-            } else if let Some(b'`') = delimiter_stack.last() {
-                if byte == b'`' {
-                    delimiter_stack.pop();
-                }
-            } else if byte == b'\'' {
-                delimiter_stack.push(b'\'')
-            } else if byte == b'"' {
-                delimiter_stack.push(b'"');
-            } else if byte == b'`' {
-                delimiter_stack.push(b'`')
-            } else if byte == b'(' {
-                delimiter_stack.push(b')');
-            } else if byte == b')' {
-                if let Some(b')') = delimiter_stack.last() {
-                    delimiter_stack.pop();
-                }
-                if delimiter_stack.is_empty() {
-                    mode = InterpolationMode::String;
-
-                    if token_start < b {
-                        let span = Span::new(token_start, b + 1);
-
-                        let expr = parse_full_cell_path(working_set, None, span);
-                        output.push(expr);
+            let byte = Delimiter::from_u8(current_byte);
+            match (delimiter_stack.last().copied(), byte) {
+                (Some(d), Some(byte)) if !d.is_paren() => {
+                    if byte == d {
+                        delimiter_stack.pop();
                     }
-
-                    token_start = b + 1;
-                    continue;
                 }
+                (_, Some(byte)) if byte != Delimiter::ParenRight => {
+                    delimiter_stack.push(byte.pair())
+                }
+                (d, Some(Delimiter::ParenRight)) => {
+                    if let Some(Delimiter::ParenRight) = d {
+                        delimiter_stack.pop();
+                    }
+                    if delimiter_stack.is_empty() {
+                        mode = InterpolationMode::String;
+
+                        if token_start < b {
+                            let span = Span::new(token_start, b + 1);
+
+                            let expr = parse_full_cell_path(working_set, None, span);
+                            output.push(expr);
+                        }
+
+                        token_start = b + 1;
+                        continue;
+                    }
+                }
+                _ => (),
             }
         }
         b += 1;
@@ -4622,26 +4646,25 @@ pub fn parse_signature_helper(
                         }
                         ParseMode::Type => {
                             if let Some(last) = args.last_mut() {
-                                let (syntax_shape, completer) = if contents.contains(&b'@') {
-                                    let mut split = contents.splitn(2, |b| b == &b'@');
+                                let (syntax_shape, completer) = contents
+                                    .iter()
+                                    .position(|b| *b == b'@')
+                                    .and_then(|idx| {
+                                        let (shape, completer) = contents.split_at_checked(idx)?;
+                                        let (shape_span, completer_span) = span.split_at(idx)?;
 
-                                    let shape_name = split
-                                        .next()
-                                        .expect("If `bytes` contains `@` splitn returns 2 slices");
-                                    let shape_span =
-                                        Span::new(span.start, span.start + shape_name.len());
-                                    let cmd_span =
-                                        Span::new(span.start + shape_name.len() + 1, span.end);
-                                    let cmd_name = split
-                                        .next()
-                                        .expect("If `bytes` contains `@` splitn returns 2 slices");
-                                    (
-                                        parse_shape_name(working_set, shape_name, shape_span),
-                                        parse_completer(working_set, cmd_name, cmd_span),
-                                    )
-                                } else {
-                                    (parse_shape_name(working_set, &contents, span), None)
-                                };
+                                        let completer = completer.strip_prefix(b"@")?;
+                                        let (_, completer_span) = completer_span.split_at(1)?;
+
+                                        Some((
+                                            parse_shape_name(working_set, shape, shape_span),
+                                            parse_completer(working_set, completer, completer_span),
+                                        ))
+                                    })
+                                    .unwrap_or_else(|| {
+                                        (parse_shape_name(working_set, &contents, span), None)
+                                    });
+
                                 //TODO check if we're replacing a custom parameter already
                                 match last {
                                     Arg::Positional {
