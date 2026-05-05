@@ -16,6 +16,37 @@ pub(crate) fn compile_call(
     input_reg: Option<RegId>,
     io_reg: RegId,
 ) -> Result<(), CompileError> {
+    // Handle dynamic percent builtin dispatch: `%($cmd)` or `%$cmd`.
+    // The parser stored the head expression in parser_info as a placeholder.
+    // Rewrite this call as `run-internal <head-expr> ...args`, mirroring how
+    // `compile_external_call` rewrites dynamic external calls to `run-external`.
+    if let Some(head_expr) = call.parser_info.get("percent_forced_builtin") {
+        let run_internal_id = working_set.find_decl(b"run-internal").ok_or_else(|| {
+            CompileError::MissingRequiredDeclaration {
+                decl_name: "run-internal".into(),
+                span: call.head,
+            }
+        })?;
+
+        let mut new_call = Call::new(call.head);
+        new_call.decl_id = run_internal_id;
+        new_call
+            .arguments
+            .push(Argument::Positional(head_expr.clone()));
+        for arg in &call.arguments {
+            new_call.arguments.push(arg.clone());
+        }
+
+        return compile_call(
+            working_set,
+            builder,
+            &new_call,
+            redirect_modes,
+            input_reg,
+            io_reg,
+        );
+    }
+
     let decl = working_set.get_decl(call.decl_id);
 
     // Check if this call has --help - if so, just redirect to `help`

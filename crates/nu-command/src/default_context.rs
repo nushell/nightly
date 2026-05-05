@@ -126,6 +126,7 @@ pub fn add_shell_command_context(mut engine_state: EngineState) -> EngineState {
             External,
             Exec,
             NuCheck,
+            RunInternal,
             Sys,
             SysCpu,
             SysDisks,
