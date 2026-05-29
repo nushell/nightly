@@ -36,7 +36,7 @@ jobs:
       - name: Setup Nushell
         uses: hustcer/setup-nu@v3
         with:
-          version: 0.109.1
+          version: 0.112.2
 
       # Synchronize the main branch of nightly repo with the main branch of Nushell official repo
       - name: Pre Release
@@ -68,7 +68,7 @@ jobs:
           # All the changes will be overwritten by the upstream main branch
           git reset --hard src/main
           git push origin main -f
-          let version = open Cargo.toml | get package.version
+          let version = open Cargo.toml | get workspace.package.version
           let tag = $'($version)-pre'
           if $tag in (git tag | lines) { git tag -d $tag }
           git tag -a $tag -m $'Pre release from Nushell main branch'
