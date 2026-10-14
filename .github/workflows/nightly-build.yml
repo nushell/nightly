@@ -192,11 +192,13 @@ jobs:
         echo "targets = ['${{matrix.target}}']" >> rust-toolchain.toml
 
     - name: Setup Rust toolchain and cache
-      uses: actions-rust-lang/setup-rust-toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@v2 # v2.0.0
       # WARN: Keep the rustflags to prevent from the winget submission error: `CAQuietExec: Error 0xc0000135`
       with:
         cache: false
         rustflags: ''
+        # Keep static glibc linker warnings visible without failing release builds.
+        build-warnings: warn
 
     - name: Setup Nushell
       uses: hustcer/setup-nu@v3
