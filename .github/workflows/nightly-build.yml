@@ -94,9 +94,12 @@ jobs:
           $'build_date=($date)(char nl)' o>> $env.GITHUB_OUTPUT
           $'nightly_tag=($nightly_tag)(char nl)' o>> $env.GITHUB_OUTPUT
           if (git ls-remote --tags origin $nightly_tag | is-empty) {
+            # Cargo allows whitespace around `=`; escape SemVer regex metacharacters.
+            let version_pattern = ($version | str replace --all '.' '\.' | str replace --all '+' '\+')
+            let pattern = (['(?<![A-Za-z0-9_-])version[ \t]*=[ \t]*"' $version_pattern '"'] | str join)
             ls **/Cargo.toml | each {|file|
               open --raw $file.name
-                  | str replace --all $'version = "($version)"' $'version = "($version)-nightly.($build)"'
+                  | str replace --all --regex $pattern $'version = "($version)-nightly.($build)"'
                   | save --force $file.name
             }
             # Disable the following two workflows for the automatic committed changes
